@@ -28,11 +28,13 @@ def hello(name: String): Unit =
   // higherOrderFunc()
 
   /////// Singleton /////////
+
   // singeltonExample()
   // println(companionExample())
   // modulesFromTraits()
 
   ////// Collections ///////
+
   // foldReduceDemo()
   // tupleExample()
 
@@ -40,8 +42,16 @@ def hello(name: String): Unit =
   // instancesOfAnyExample()
 
   ///// String Interpolation ///////
+
   // customInterpolatorExample()
-  patternMatchingCustomExtractorExample()
+  // patternMatchingCustomExtractorExample()
+
+  ///// Control Strucutres //////////
+  // forExpressions()
+  // between3and10(List(1, 3, 7, 11))
+  matchExpressionsExamples()
+
+
 
 def helloInteractive() =
   println("Please enter your name")
