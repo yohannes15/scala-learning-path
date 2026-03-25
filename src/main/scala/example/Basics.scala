@@ -34,7 +34,10 @@ def hello(name: String): Unit =
 
   ////// Collections ///////
   // foldReduceDemo()
-  tupleExample()
+  // tupleExample()
+
+  ////// Types ////////////
+  instancesOfAnyExample()
 
 def helloInteractive() =
   println("Please enter your name")
