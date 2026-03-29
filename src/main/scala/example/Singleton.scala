@@ -1,7 +1,13 @@
 package example
 
 // In Scala, the object keyword creates a Singleton object. Put another way, 
-// an object defines a class that has exactly one instance.
+// an object defines a class that has exactly one instance. Its init lazily when
+// its members are referenced, similar to a `lazy val`. 
+
+// Objects can also contain fields, which are also accessed like static members:
+object MathConstants:
+    val PI = 3.14159
+    val E = 2.71828
 
 // Use cases
 
@@ -9,20 +15,30 @@ package example
 //// 1) UTILITY METHODS /////////
 /////////////////////////////////
 
-// because obj is a singleton, its methods can be accessed like static methods
+// because obj is a singleton, its methods can be accessed like static methods. 
 
 object StringUtils:
     def isNullOrEmpty(s: String): Boolean = s == null || s.trim().isEmpty()
     def leftTrim(s: String): String = s.replaceAll("^\\s+", "")
     def rightTrim(s: String): String = s.replaceAll("\\s+$", "")
+    def containsWhitespace(s: String): Boolean = s.matches(".*\\s.*")
+    def truncate(s: String, length: Int): String = s.take(length)
 
+// Importing in Scala is very flexible, and allows us to import all members of an object:
+import StringUtils.*
+// Or import just some members
+import StringUtils.{truncate, containsWhitespace}
 
 def singeltonExample(): Unit =
     val x = null
-    println(s"$x is ${if StringUtils.isNullOrEmpty(x) then "Empty" else "Not Empty"}")
+    println(s"$x is ${if isNullOrEmpty(x) then "Empty" else "Not Empty"}")
 
     val y = "Yohan"
-    println(s"$y is ${if StringUtils.isNullOrEmpty(y) then "Empty" else "Not Empty"}")
+    println(s"$y is ${if isNullOrEmpty(y) then "Empty" else "Not Empty"}")
+
+    println(truncate("Chuck Bartowski", 5))  // "Chuck"
+
+    println(MathConstants.PI)   // 3.14159
 
 ///////////////////////////////////
 //// 2) Companion Objects /////////
@@ -33,8 +49,13 @@ def singeltonExample(): Unit =
 
  - A companion object is an `object` with the same name as a `class` in the same file.
  - The class and its companion object can access each other's private members.
- - Use a companion object to hold factory methods, constants, or utilities that are
-   related to the class but don't belong to any particular instance.
+ - Use a companion object for: 
+    a. factory methods, constants, or utilities that are related to the class but don't belong to any particular instance.
+    b. group "Static" methods under a namespace. Methods can be public or private
+    c. holding `apply` methods -> which thanks to some syntactic sugar, work as factor methods to construct new instances
+    d. holding `unapply` methods -> used to deconstruct objects, such as with pattern matching. 
+
+ - Companion objects are used for methods and values that are not specific to instances of the companion class. 
 
  This example shows:
  1) `Circle` (a class) calling `calculateArea` which is defined as a private method
@@ -49,6 +70,7 @@ import scala.math.*
 
 // The class represents an instance of a circle with a radius.
 // It uses the companion's private calculateArea method to compute the area.
+// the class Circle has a member named area which is specific to each instance,
 class Circle(radius: Double):
     // Bring companion members into scope so we can call `calculateArea` without
     // qualifying it as `Circle.calculateArea`. This is a convenience, not a
@@ -59,16 +81,47 @@ class Circle(radius: Double):
 // Companion object for `Circle`.
 // Holds helper/utility code related to Circle instances. Its `calculateArea`
 // is private to the companion pair but accessible from the `Circle` class.
+// companion object has a method named calculateArea that’s 
+// - (a) not specific to an instance, and
+// - (b) is available to every instance
+
 object Circle:
     // Private helper used by the class above. Marked private because it's an
     // implementation detail that shouldn't be exposed outside the companion pair.
+    // because calculateArea is private, it can’t be accessed by other code, but as shown, 
+    // it can be seen by instances of the Circle class.
     private def calculateArea(radius: Double): Double =
         Pi * pow(radius, 2.0)
 
+// Heres a look at how `apply` methods can be used as factory methods to create new objects
+class Human:
+    var name = ""
+    var age = 0
+    override def toString = s"$name is $age years old"
+
+object Human:
+
+    // a one-arg factory method
+    def apply(name: String): Human = 
+        var p = new Human
+        p.name = name
+        p 
+
+    // a two-arg factory method
+    def apply(name: String, age: Int): Human =
+        var p = new Human
+        p.name = name
+        p.age = age
+        p
+
 def companionExample(): Unit =
     val circle = Circle(5.0)
-    circle.area
+    println(circle.area)
 
+    val joe = Human("Joe")
+    val fred = Human("Fred", 29)
+    println(joe)
+    println(fred)
 /////////////////////////////////////
 //// 3) Modules from Traits /////////
 /////////////////////////////////////

@@ -18,8 +18,12 @@ def hello(name: String): Unit =
 
   // exampleTraitClasses()
   // sumTypeExample()
+  // caseClassExample()
+  caseObjectExamplehandleMessages(PlaySong("Rehab"))
   // println(sumTypeExample2(Sunny))
   // productType()
+  // auxiliaryClassConstructor()
+  // enumExample()
 
   /////// Methods ///////
   // testExtension()
@@ -30,7 +34,7 @@ def hello(name: String): Unit =
   /////// Singleton /////////
 
   // singeltonExample()
-  // println(companionExample())
+  // companionExample()
   // modulesFromTraits()
 
   ////// Collections ///////
@@ -55,8 +59,8 @@ def hello(name: String): Unit =
   //   println("Repeating this 3 times")
   // }
   // repeat(1)(println("Repeatng this 1 time"))
-   firstIndex(List(1, 2, 3, 4, 5), 3) // 2
-   firstIndex(List(1, 2, 3, 4, 5), 99) // -1
+  //  firstIndex(List(1, 2, 3, 4, 5), 3) // 2
+  //  firstIndex(List(1, 2, 3, 4, 5), 99) // -1
 
 
 

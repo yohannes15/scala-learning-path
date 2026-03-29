@@ -2,7 +2,9 @@
 
 package example
 
-// Traits
+/////////////////////////////////////////////////
+///////// Traits ///////////////////////////////
+/////////////////////////////////////////////////
 
 // Scala traits can be used as simple interfaces, but they can also contain abstract and concrete methods and fields,
 // and they can have parameters, just like classes. They provide a great way for you to organize behaviors into small,
@@ -44,13 +46,201 @@ def exampleTraitClasses() =
   c.startRunning()
   c.stopRunning()
 
+/////////////////////////////////////////////////
+///////// CLASSES ///////////////////////////////
+/////////////////////////////////////////////////
+
 // Scala classes are used in OOP style. Constructor params with var become mutable fields.
 // (Use val for immutable, or no prefix if param is only used during construction.)
+// if you want them immutable (read-only), create them as val fields or use a `case` class
+
+class Movie(var name: String, var director: String, var year: Int = 2000):
+  println("initialization begins")
+  // additional fields that are not part of constructors
+  val rating = year % 10
+
+  // method
+  def getRating(): Int =
+    rating
+
+  println("initialization ends")
+
+/* 
+Auxiliary Constructors - You can define a class to have multiple constructors so consumers of your class can build it in 
+different ways. For example, lets assume you need to write some code to model students in a college system. You need to be able
+to construct `Student` instance in three ways:
+  - With a name and government ID, -> when they first start the admissions process
+  - With a name, goverment ID and an additional application date -> when they submit their application 
+  - wiht a name, government ID and their studFent ID, -> after they have been admitted
+ */
+
+import java.time.* 
+
+// [1] the primary constructor
+class Student(var name: String, var govtId: String):
+  private var _applicationDate: Option[LocalDate] = None
+  private var _studentId: Int = 0
+
+  // [2] constructor for when student has completed their application
+  def this(name: String, govtId: String, applicationDate: LocalDate) =
+    this(name, govtId)
+    _applicationDate = Some(applicationDate)
+
+  // [3] a constructor for when the student is approved
+  // and now has a student id
+  def this(name: String, govtId: String, studentId: Int) =
+    this(name, govtId)
+    _studentId = studentId
+
+
+def auxiliaryClassConstructor() = 
+  val s1 = Student("Mary", "123")
+  val s2 = Student("Mary", "123", LocalDate.now())
+  val s3 = Student("Mary", "123", 456)
+
+  println(s1)
+  println(s2)
+  println(s3)
+
+/////////////////////////////////////////////////
+///////// ABSTRACT CLASSES //////////////////////
+/////////////////////////////////////////////////
+
+// When you want to write a class, but you know it will have abstract members, you can use `trait` or `abstract class`
+// Prior to Scala 3, when a base class needed to take constructor arguments, you’d declare it as an abstract class
+// However, with Scala 3, traits can now have parameters, so you can now use traits in the same situation:
+
+/* 
+Traits are more flexible to compose—you can mix in multiple traits, but only extend one class—and should be preferred to
+classes and abstract classes most of the time. The rule of thumb is to use classes whenever you want to create 
+instances of a particular type, and traits when you want to decompose and reuse behaviour.
+ */
+
+abstract class Pet(name: String): // or in scala3:  `trait Pet(name String)`: 
+  def greeting: String
+  def age: Int
+  override def toString(): String = s"My name is $name, I Say $greeting, and I'm $age"
+
+class Bird(name: String, var age: Int) extends Pet(name):
+  val greeting = "kiikii"
+
+val bird = Bird("Fido", 1) // My name is Fido, I Say kiikii, and I'm 1
+
+
+/////////////////////////////
+///////// ENUMS /////////////
+/////////////////////////////
+
+// An enumeration is a sum type: a value of type `Color` is exactly one of `Red`, `Green`, or `Blue`. Scala 3
+// `enum` gives exhaustive `match`, `values`, and ordering without boilerplate.
+
+// Parameterized enum: constructor args after the enum name are shared by all cases. Each case passes its own
+// values via `extends Color(...)`. Marking a parameter as `val` (e.g. `val rgb`) exposes it as a field on every
+// case—handy for small attached data (here a 24-bit `0xRRGGBB` color).
+
+enum RgbColor(val rgb: Int):
+  case Red extends RgbColor(0xFF0000)
+  case Green extends RgbColor(0x00FF00)
+  case Blue  extends RgbColor(0x0000FF)
+
+// The enum body can declare methods, `private` helpers, and `val`s
+
+enum Planet(mass: Double, radius: Double):
+  private final val G = 6.67300E-11
+  def surfaceGravity = G * mass / (radius * radius)
+  def surfaceWeight(otherMass: Double) =
+    otherMass * surfaceGravity
+
+  case Mercury extends Planet(3.303e+23, 2.4397e6)
+  case Earth extends Planet(5.976e+24, 6.37814e6)
+
+// Compatibility with Java enums: `Enum[E]` is `java.lang.Enum` (on the classpath by default). Type parameter `E`
+// is the enum type itself; the compiler supplies what the Java API expects.
+enum Color extends Enum[Color]:
+  case Red, Green, Blue
+
+def enumExample() =
+  import RgbColor.*
+  println(Red.rgb)
+  println(Green.rgb)
+  println(Blue.rgb)
+  import Planet.*
+  println(Mercury.surfaceGravity)
+  println(Earth.surfaceGravity)
+  println(Color.Red.compareTo(Color.Green))
+
+///////////////////////////////////////////////
+//////// CASE CLASSES /////////////////////////
+///////////////////////////////////////////////
 
 /*
-class Person(var firstName: String, var lastName: String):
-    def printFullName() = println(s"$firstName $lastName")
+Case classes are used to model immutable data structures. 
+A case class has func of a class and also has additional features baked in that make them useful for FP
+When compiler sees the case keyword in front of a class it has these effects and benefits:
+    A) constructor parameters are public val fields by default, so fields are immutable and
+       accessor methods are generated for each param
+    B) `unapply` method is generated, which lets you use case classes in more ways in `match` expressions `case Person(n, r) => ...`
+    C) `copy` method is generated in the class. allows creation of updated copies of the obj w/o changing the original obj
+    D) `equals` and `hashCode` methods are generated to implement equality, allowing you to use instances of case classes in Maps.
+    E) default `toString` method generated
+
+case classes support functional programming (FP):
+  a. In FP, you try to avoid mutating data structures. It thus makes sense that constructor fields default to val.
+  Since instances of case classes can’t be changed, they can easily be shared without fearing mutation or race conditions.
+
+  b. Instead of mutating an instance, you can use the copy method as a template to create a new (potentially changed) instance.
+  This process can be referred to as “update as you copy.”
+
+  c. Having an unapply method auto-generated for you also lets case classes be used in advanced ways with pattern matching.
  */
+
+case class Person(name: String, vocation: String)
+
+def caseClassExample() = 
+  // Case classes can be used as patterns
+  val christina = Person("Christina", "niece")
+  christina match
+    case Person(n, r) => println("name is " + n)
+
+  // `equals` and `hashCode` methods generated for you
+  val hannah = Person("Hannah", "niece")
+  println(christina == hannah) // false
+
+  // `toString` method
+  println(christina) // Person(Christina,niece)
+
+  // bulit-in `copy` method
+  case class BaseballTeam(name: String, lastWorldSeriesWin: Int)
+  val cubs1908 = BaseballTeam("Chicago Cubs", 1908)
+  val cubs2016 = cubs1908.copy(lastWorldSeriesWin = 2016)
+  println(s"cubs $cubs2016 is not equal to $cubs1908")
+
+///////////////////////////////////////////////
+//////// CASE OBJECTS /////////////////////////
+///////////////////////////////////////////////
+
+/* 
+Case objects are to objects what case classes are to classes: they provide a number of automatically-generated
+methods to make them more powerful. They’re particularly useful whenever you need a singleton object that needs
+a little extra functionality, such as being used with pattern matching in match expressions.
+
+case bojects are useful when you need to pass immutable messages around. 
+ */
+
+// For instance, if you’re working on a music player project, you’ll create a set of commands or messages like this:
+// the word sealed forces us to define all possible extensions of the trait in the same file
+sealed trait Message 
+case class PlaySong(name: String) extends Message
+case class IncreaseVolume(amount: Int) extends Message
+case class DecreaseVolume(amount: Int) extends Message
+case object StopPlaying extends Message
+
+def caseObjectExamplehandleMessages(message: Message): Unit = message match
+  // use pattern matching to handle the incoming message to call different methods
+  case PlaySong(name) => println("calling the playSong(name) method")
+  case IncreaseVolume(amount) => println("calling the IncreaseVolume(amount) method")
+  case DecreaseVolume(amount) => println("calling the DecreaseVolume(-amount) method")
+  case StopPlaying            => println("calling the StopPlaying method")
 
 /////////////////////////////////////////////////
 ///////// ADTs & FP DOMAIN MODELING /////////////
@@ -131,19 +321,6 @@ def sumTypeExample2(w: Weather): String = w match
 // Product Type is an ADT that only has one shape, ex Singleton object, represented in Scala by a `case object`
 // or an immutable structure with accessible fields, represented by `case class`
 // Associated with the AND operator
-
-/*
-A case class has func of a class and also has additional features baked in that make them useful for FP
-When compiler sees the case keyword in front of a class it has these effects and benefits:
-    A) constructor parameters are public val fields by default, so fields are immutable and
-       accessor methods are generated for each param
-    B) `unapply` method is generated, which lets you use case classes in more ways in `match` expressions
-    C) `copy` method is generated in the class. allows creation of updated copies of the obj w/o changing the original obj
-    D) `equals` and `hashCode` methods are generated to implement equality
-    E) default `toString` method generated
- */
-
-case class Person(name: String, vocation: String)
 
 def productType(): Unit =
   val p = Person("Yohannes Berhane", "Engineer")
