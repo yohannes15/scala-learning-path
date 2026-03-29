@@ -19,11 +19,15 @@ def hello(name: String): Unit =
   // exampleTraitClasses()
   // sumTypeExample()
   // caseClassExample()
-  caseObjectExamplehandleMessages(PlaySong("Rehab"))
+  // caseObjectExamplehandleMessages(PlaySong("Rehab"))
   // println(sumTypeExample2(Sunny))
   // productType()
   // auxiliaryClassConstructor()
   // enumExample()
+
+  ////// OOPModeling.scala ////////
+  // mixinCompositionExample()
+  sensorReaderExample()
 
   /////// Methods ///////
   // testExtension()
