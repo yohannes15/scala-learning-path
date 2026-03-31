@@ -3,14 +3,6 @@ package example
 import java.security.KeyException
 import java.io.IOException
 
-trait Animal:
-  val name: String
-
-case class Cat(name: String) extends Animal:
-  def meow: String = "Meow"
-
-case class Dog(name: String) extends Animal:
-  def bark: String = "Bark"
 /*
 when every expression you write returns a value, that style is referred as expression-oriented programming,
 
@@ -112,6 +104,15 @@ def between3and10(nums: List[Int]): List[Int] =
 
 // The name used in the pattern must begin with a lowercase letter.
 // A name beginning with an uppercase letter does not introduce a variable, but matches a value in scope:
+
+trait Animal:
+  val name: String
+
+case class Cat(name: String) extends Animal:
+  def meow: String = "Meow"
+
+case class Dog(name: String) extends Animal:
+  def bark: String = "Bark"
 
 def matchExpressionsExamples(): Unit =
   val i = 42
