@@ -37,7 +37,11 @@ def hello(name: String): Unit =
   // methodVisibility()
 
   //// Main Methods /////
-  testMainMethods()
+  // testMainMethods()
+
+  //// Functions /////
+  // anonymousExample()
+  functionVariableExample()
 
   /////// First Class Functions ////////
   // higherOrderFunc()
