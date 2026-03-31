@@ -92,14 +92,14 @@ class Tiger:
 val t = Tiger()
 // t.speak()      // prints "rarr"  // instance created here can access the speak method:
 
-class Animal:
+class Mammal:
   private def breathe() = println("I’m breathing") // private method only accessible in this class
   def walk() =
     breathe()
     println("I’m walking")
   protected def speak() = println("Hello?") // subclass can call / ovverride it
 
-class Lion extends Animal:
+class Lion extends Mammal:
   override def speak() = println("Lion Meow")
 
 
