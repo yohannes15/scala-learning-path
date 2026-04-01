@@ -291,7 +291,8 @@ possible exceptions that can occur.
 
 def tryCatch() =
   var text = ""
-  try throw KeyException("KeyError")
+  try 
+    throw KeyException("KeyError")
   catch
     case ke: KeyException => ke.printStackTrace()
     case ioe: IOException => ioe.printStackTrace()
