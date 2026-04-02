@@ -42,7 +42,8 @@ def hello(name: String): Unit =
   //// Functions /////
   // anonymousExample()
   // functionVariableExample()
-  partialFunctionExample()
+  // partialFunctionExample()
+  hofExample()
 
   /////// First Class Functions ////////
   // higherOrderFunc()

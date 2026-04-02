@@ -162,7 +162,7 @@ More concretely: with automatic eta-expansion, the compiler automatically conver
 method reference, without supplied arguments, to an equivalent anonymous function that
 will call the method. 
 
-For example, the reference to times10 in the code above gets rewritten to x => times10(x), as seen here:
+For example, the reference to times10 in the code above gets rewritten to x => times10(x), as seen below
 
 When does eta-expansion happen?
 -------------------------------------------------------------
@@ -189,6 +189,7 @@ converted to a function object with a matching type. e.g.
 ************************************************************
 ************************************************************/
 
+def times10(i: Int) = i * 10
 def isLessThan(x: Int, y: Int): Boolean = x < y
 def isGreaterThan(x: Int, y: Int): Boolean = x > y
 def isEqualTo(x: Int, y: Int): Boolean = x == y
@@ -209,13 +210,75 @@ def etaExpansionExample() =
 
 /************************************************************
  ************************************************************
- Higher-Order Functions
- --------------------------------
+                Higher-Order Functions
+ --------------------------------------------------------------------
+
  A higher-order function (HOF) is often defined as a function that 
     (a) takes other functions as input parameters or 
     (b) returns a function as a result. 
  
  In Scala, HOFs are possible because functions are first-class values.
  This phrase applies to both methods and functions due to Scala’s Eta Expansion
- ************************************************************
- ************************************************************/
+
+-------------------------------------------------------------------
+Understanding `filter’s` Scaladoc
+-------------------------------------------------------------------
+Here’s the filter definition in the List[A] class:
+
+  `def filter(p: A => Boolean): List[A]`  
+  // uses the predicate p to create and return the List[A]
+
+This states that filter is a method that takes a function parameter named p. 
+By convention, p stands for a predicate: is a function that takes one or more 
+arguments and returns a Boolean value, which is either true or false.
+
+Returns a List[A], where A is the type held in the list; if you call filter 
+on a List[Int], A is the type Int.
+
+`p: A => Boolean`
+    -> func must take the type A as input and return a Boolean
+
+So if your list is a List[Int], you can replace the type parameter A with Int, 
+and read that signature like this:
+    `p: Int => Boolean`
+
+Because isEven has this type—it transforms an input Int into a resulting Boolean
+it can be used with filter.
+
+************************************************************
+************************************************************/
+
+/*
+-------------------------------------------------------------------
+Writing methods that take function parameters
+--------------------------------------------------------------------
+
+- f is the name of the function input parameter.
+- The type signature of f specifies the type of the functions this method will accept.
+- The () portion of f’s signature (on the left side of the => symbol): f takes no input parameters
+- The Unit portion of the signature (on the right side of the => symbol): f should not return a meaningful result.
+- Looking below at the body of the sayHello method (on the right side of the = symbol), 
+  the f() statement there invokes the function that’s passed in.
+*/
+
+def sayHello(f: () => Unit): Unit = f()
+
+/* 
+Now that we’ve defined sayHello, let’s create a function to match f’s signature so we can test it.
+The following function takes no input parameters and returns nothing, so it matches f’s type signature:
+*/
+
+def helloJoe(): Unit = println("Hello, Joe")
+def bonjourJulien(): Unit = println("Bonjour, Julien")
+
+def hofExample() =
+    // sayHello cantake any function that matches f’s signature
+    sayHello(helloJoe)   // prints "Hello, Joe"
+    sayHello(bonjourJulien) // prints "Bonjour, Julien"
+
+/*
+-------------------------------------------------------------------
+General syntax for defining function input parameters in HOFs
+--------------------------------------------------------------------
+
+*/
