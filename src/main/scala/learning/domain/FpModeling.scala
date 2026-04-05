@@ -1,4 +1,4 @@
-package example
+package learning
 
 /* introduction to domain modeling using functional programming (FP) in Scala 3 
 

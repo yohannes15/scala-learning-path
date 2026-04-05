@@ -1,4 +1,4 @@
-package example
+package learning
 
 /*************************************************************
  *****************What is Functional Programming**************

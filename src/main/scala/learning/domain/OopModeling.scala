@@ -1,4 +1,4 @@
-package example
+package learning
 
 import scala.compiletime.ops.string
 

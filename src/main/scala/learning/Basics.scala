@@ -1,8 +1,11 @@
-package example
+package learning
+
+/* Tutorial entrypoint: `hello` lists the modules in study order — see `docs/LEARNING_PATH.md`
+ * and `docs/diagrams.md` for SVGs. */
 
 import scala.io.StdIn.readLine
 import java.io.IOException
-import example.collections.{
+import learning.collections.{
   lazyListExample,
   listCollection,
   vectorExample,
@@ -33,7 +36,7 @@ def hello(name: String): Unit =
   // tryCatchFinally()
   // whileLoop()
 
-  ///// DomainModeling.scala ////////
+  ///// domain/DomainModeling.scala ////////
 
   // exampleTraitClasses()
   // sumTypeExample()
@@ -44,11 +47,11 @@ def hello(name: String): Unit =
   // auxiliaryClassConstructor()
   // enumExample()
 
-  ////// OOPModeling.scala ////////
+  ////// domain/OopModeling.scala ////////
   // mixinCompositionExample()
   // sensorReaderExample()
 
-  ////// FpModeling.scala ///////
+  ////// domain/FpModeling.scala ///////
   // fpModelingExample()
 
   /////// Methods ///////
