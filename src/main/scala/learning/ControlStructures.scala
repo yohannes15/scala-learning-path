@@ -1,4 +1,4 @@
-package example
+package learning
 
 import java.security.KeyException
 import java.io.IOException
@@ -115,7 +115,7 @@ case class Dog(name: String) extends Animal:
   def bark: String = "Bark"
 
 def matchExpressionsExamples(): Unit =
-  import example.collections.Persona
+  import learning.collections.Persona
 
   val i = 42
   i match

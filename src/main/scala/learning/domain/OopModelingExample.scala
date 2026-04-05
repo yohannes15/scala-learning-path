@@ -1,4 +1,4 @@
-package example
+package learning
 
 /*******************************************************************
  Advanced example: service-oriented design with a *family of types*

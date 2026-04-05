@@ -1,4 +1,4 @@
-package example
+package learning
 
 // The s interpolator
 

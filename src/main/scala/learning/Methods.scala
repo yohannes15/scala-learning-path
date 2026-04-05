@@ -1,4 +1,4 @@
-package example
+package learning
 
 import java.io.StringWriter
 import java.io.PrintWriter
@@ -16,7 +16,7 @@ Notice that there’s no need for a return statement at the end of the method. B
 an expression—meaning that each line of code returns (or evaluates to) a value there’s no need to use return.
 */
 
-def sum(a: Int, b: Int): Int = a + b
+def addInts(a: Int, b: Int): Int = a + b
 def concatenate(s1: String, s2: String): String = s1 + s2
 
 // converts its Throwable input parameter into a well-formatted String:

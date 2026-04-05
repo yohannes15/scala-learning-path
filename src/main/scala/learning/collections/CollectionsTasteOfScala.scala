@@ -1,4 +1,4 @@
-package example.collections
+package learning.collections
 
 // There are both immutable and mutable collections.
 // This file shows common operations on immutable `List`. Lists are persistent:

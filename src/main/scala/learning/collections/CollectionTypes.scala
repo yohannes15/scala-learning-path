@@ -1,4 +1,4 @@
-package example.collections
+package learning.collections
 
 /* 
 3 main categories to choose from
@@ -13,7 +13,7 @@ ranges, stacks, and queues.
 
 https://docs.scala-lang.org/overviews/collections-2.13/performance-characteristics.html
 
-`static/scala.collection-high-level.svg`
+`src/main/scala/learning/static/scala.collection-high-level.svg` (see `docs/diagrams.md`)
     - high level abstract classes or traits (generally have immutable and mutable implementations)
     - Iterable 
         -> Seq
@@ -25,7 +25,7 @@ https://docs.scala-lang.org/overviews/collections-2.13/performance-characteristi
         -> Map
             -> Sorted Map
 
-`static/scala.collection.immutable.svg`
+`src/main/scala/learning/static/scala.collection.immutable.svg`
     - immutable collections / implementations 
     - Iterable 
         -> Seq
@@ -53,7 +53,7 @@ https://docs.scala-lang.org/overviews/collections-2.13/performance-characteristi
                 -> ListMap
                 -> VectorMap
 
-`static/scala.collection.mutable.svg`
+`src/main/scala/learning/static/scala.collection.mutable.svg`
     - mutable collections / implementations 
     - Iterable 
         -> PriorityQueue
@@ -362,11 +362,9 @@ def setExample() =
 ***********************************************************************
                     Range
 -----------------------------------------------------------------------
-Often used to populate data structures and to iterate over for loops
+Often used to populate data structures and to iterate over for loops.
 
-Scala has both mutable and immutable Set types. 
-
-This section demonstrates the immutable Set.
+This section demonstrates **Range** (`to` / `until` / `by`, and collection factories).
 ***********************************************************************
 ***********************************************************************/
 

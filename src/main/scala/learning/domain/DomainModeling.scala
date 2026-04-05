@@ -1,6 +1,6 @@
 // When writing code in an OOP style, your two main tools for data encapsulation are traits and classes.
 
-package example
+package learning
 
 /////////////////////////////////////////////////
 ///////// Traits ///////////////////////////////

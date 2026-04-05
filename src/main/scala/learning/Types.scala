@@ -1,7 +1,7 @@
-package example
+package learning
 
 // All values have a type, including numerical values and functions. 
-// look at type-hiearchy.svg for visual demonstration
+// See `src/main/scala/learning/static/type-hierarchy.svg` (also in docs/diagrams.md).
 
 /* 
 `Any`:
@@ -39,7 +39,7 @@ package example
       with other JVM languages
     
 Type Casting
--> Value types can be cast in the following way: static/type-casting-diagram.svg.
+-> Value types can be cast in the following way: `src/main/scala/learning/static/type-casting-diagram.svg`.
    Byte -> Short -> Int -> Long -> Float -> Double.
                      ^
                     |||

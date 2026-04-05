@@ -1,4 +1,4 @@
-package example
+package learning
 
 /*
 FUNCTIONS
@@ -409,11 +409,11 @@ def map[A, B](f: (B) => A, xs: List[B]): List[A] =
 // Now you have a map method that works with any List.
 
 // These methods match the type f accepts
-def double(i : Int): Int = i * 2
+def timesTwo(i: Int): Int = i * 2
 def strlen(s: String): Int = s.length
 
 def customMapMethodExample() = 
-    println(map(double, List(1,2,3)))             // List(2, 4, 6)
+    println(map(timesTwo, List(1,2,3)))             // List(2, 4, 6)
     println(map(strlen,List("a", "bb", "ccc")))   // List(1, 2, 3)
 
 

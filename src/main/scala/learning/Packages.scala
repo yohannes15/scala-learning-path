@@ -1,4 +1,4 @@
-package example
+package learning
 
 /* 
 Scala uses packages to create namespaces that let you modularize programs
