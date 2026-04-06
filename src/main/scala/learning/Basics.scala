@@ -15,6 +15,8 @@ import learning.collections.{
   vectorExample,
   arrayExample,
   arrayBufferExample,
+  foldReduceDemo,
+  tupleExample,
   mapExample,
   setExample,
   rangeExample,
@@ -28,19 +30,27 @@ import learning.collections.{
   collectionMethodsdropExample,
   collectionMethodsreduceExample
 }
+import learning.types.{
+  instancesOfAnyExample,
+  genericsExample,
+  intersectionTypesExample,
+  unionTypeExample,
+  optionAsEnumExample,
+  gadtExample
+}
 
 @main
 def hello(name: String): Unit =
   println(s"Scala ${name} dev container is ready.")
 
-  ///// Basics.scala ////////
+  /// Basics.scala ////////
 
   // helloInteractive()
   // matching()
   // tryCatchFinally()
   // whileLoop()
 
-  ///// domain/DomainModeling.scala ////////
+  // /// domain/DomainModeling.scala ////////
 
   // exampleTraitClasses()
   // sumTypeExample()
@@ -51,21 +61,21 @@ def hello(name: String): Unit =
   // auxiliaryClassConstructor()
   // enumExample()
 
-  ////// domain/OopModeling.scala ////////
+  // //// domain/OopModeling.scala ////////
   // mixinCompositionExample()
   // sensorReaderExample()
 
-  ////// domain/FpModeling.scala ///////
+  // //// domain/FpModeling.scala ///////
   // fpModelingExample()
 
-  /////// Methods ///////
+  // ///// Methods ///////
   // testExtension()
   // methodVisibility()
 
-  //// Main Methods /////
+  // // Main Methods /////
   // testMainMethods()
 
-  //// Functions /////
+  // // Functions /////
   // anonymousExample()
   // functionVariableExample()
   // partialFunctionExample()
@@ -76,22 +86,22 @@ def hello(name: String): Unit =
   // methodReturningFuncExample()
   // methodReturningFuncExample2()
 
-  /////// First Class Functions ////////
+  // ///// First Class Functions ////////
   // higherOrderFunc()
 
-  /////// Singleton /////////
+  // ///// Singleton /////////
 
   // singeltonExample()
   // companionExample()
   // modulesFromTraits()
 
-  ////// Collections ///////
+  // //// Collections ///////
   // listCollection()
   // lazyListExample()
   // foldReduceDemo()
   // tupleExample()
 
-  //// CollectionTypes //////
+  // // CollectionTypes //////
   // vectorExample()
   // arrayExample()
   // arrayBufferExample()
@@ -99,7 +109,7 @@ def hello(name: String): Unit =
   // setExample()
   // rangeExample()
 
-  //// CollectionMethods //////
+  // // CollectionMethods //////
   // collectionMethodsExample()
   // collectionMethodsMapExample()
   // collectionMethodsFilterExample()
@@ -110,15 +120,15 @@ def hello(name: String): Unit =
   // collectionMethodsdropExample()
   // collectionMethodsreduceExample()
 
-  ////// TypesHiearchy ////////////
+  // //// TypesHiearchy ////////////
   // instancesOfAnyExample()
 
-  ///// String Interpolation ///////
+  // /// String Interpolation ///////
 
   // customInterpolatorExample()
   // patternMatchingCustomExtractorExample()
 
-  ///// Control Strucutres //////////
+  // /// Control Strucutres //////////
   // forExpressions()
   // between3and10(List(1, 3, 7, 11))
   // matchExpressionsExamples()
@@ -130,22 +140,21 @@ def hello(name: String): Unit =
   //  firstIndex(List(1, 2, 3, 4, 5), 3) // 2
   //  firstIndex(List(1, 2, 3, 4, 5), 99) // -1
 
-  //// Packages /////////
+  // // Packages /////////
   // importGivenExample()
 
-  ////// Functional Programming //////
+  // //// Functional Programming //////
   // immutableValuesExample()
   // pureFunctionsExample()
   // optionExample()
   // optionToReplaceNullExample()
   // trySuccessFailureExample()
 
-  ////// Types //////////////
+  // ////// Types //////////////
   // genericsExample()
   // intersectionTypesExample()
   // unionTypeExample()
   // optionAsEnumExample()
-  // enumExampleMore()
   gadtExample()
 
 def helloInteractive() =
