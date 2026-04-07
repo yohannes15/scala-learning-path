@@ -126,7 +126,7 @@ To reinforce the above, here's another strucutral type name `Book` that represen
 that you might read from a database
 */
 
-type Book = Record {
+type BookRecord = Record {
     val title: String
     val author: String
     val year: Int
@@ -151,7 +151,7 @@ def structuralTypeExample2() =
     // asInstanceOf[Book] doesn't change the runtime object at all —
     // it just tells the compiler "trust me, this Record has title, author, year and rating".
     // From this point on, the compiler the types of each
-    val bookBook = bookRecord.asInstanceOf[Book]
+    val bookBook = bookRecord.asInstanceOf[BookRecord]
     println(bookBook)
 
     // Step 4: dot notation now works — this is the "structural" access
@@ -159,10 +159,10 @@ def structuralTypeExample2() =
 
     // What the compiler actually emits under the hood for bookBook.title and bookBook.rating:
     //   bookBook.title    →  bookBook.selectDynamic("title").asInstanceOf[String]
-    //   bookBook.rating   →  bookBook.selectDynamic("rating").asInstanceOf[Int]
+    //   bookBook.rating   →  bookBook.selectDynamic("rating").asInstanceOf[Double]
 
     bookBook.selectDynamic("title").asInstanceOf[String]
-    bookBook.selectDynamic("rating").asInstanceOf[Int]
+    bookBook.selectDynamic("rating").asInstanceOf[Double]
 
 /* 
 Selectable class

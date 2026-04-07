@@ -57,7 +57,9 @@ import learning.functions.{
   customMapMethodExample,
   methodReturningFuncExample,
   methodReturningFuncExample2
-
+}
+import learning.contextualabstractions.{
+  extensionExample
 }
 
 @main
@@ -185,6 +187,10 @@ def hello(name: String): Unit =
   // opaqueTypeExample()
   // structuralTypeExample()
   structuralTypeExample2()
+
+
+  //////// ContextualAbstractions
+  extensionExample()
 
 def helloInteractive() =
   println("Please enter your name")
