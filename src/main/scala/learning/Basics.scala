@@ -42,7 +42,9 @@ import learning.types.{
   contravariantExample,
   opaqueTypescala2abstractionOverhead,
   leakyAbstractionscala2Example,
-  opaqueTypeExample
+  opaqueTypeExample,
+  structuralTypeExample,
+  structuralTypeExample2
 }
 import learning.functions.{
   anonymousExample,
@@ -180,7 +182,9 @@ def hello(name: String): Unit =
   // contravariantExample()
   // opaqueTypescala2abstractionOverhead()
   // leakyAbstractionscala2Example()
-  opaqueTypeExample()
+  // opaqueTypeExample()
+  // structuralTypeExample()
+  structuralTypeExample2()
 
 def helloInteractive() =
   println("Please enter your name")
@@ -195,9 +199,10 @@ def helloInteractive() =
   ////////////////////////////////////////////////
   //////////////////// Map //////////////////////
   ///////////////////////////////////////////////
+  // a -> b is just prettier syntax for the same thing as (a, b)
   val allowedChoices = Map(
     "m" -> "Male",
-    "f" -> "Female",
+    ("f", "Female"),
     "na" -> "Prefer not to say"
   )
   println(s"What is your gender? allowed choices: ${allowedChoices.keys}")
