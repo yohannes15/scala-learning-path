@@ -331,3 +331,5 @@ def contravariantExample(): Unit =
   println(s"f.apply(gadget) == $gadget")
   println(s"g: widened to Function[Buyable, Item], same runtime value: ${g.apply(gadget)}")
   println(s"h: narrowed argument to Book, apply(book): ${h.apply(book)}")
+
+// TODO: Continue from Opaque Types https://docs.scala-lang.org/scala3/book/types-opaque-types.html
