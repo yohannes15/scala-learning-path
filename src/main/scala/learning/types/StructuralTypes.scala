@@ -205,3 +205,34 @@ def applyDynamicExample() =
     println(t.double(5))        // 10
     // t.shout("hello") → t.applyDynamic("shout")("hello") → "HELLO"
     println(t.shout("hello"))   // HELLO
+
+/* 
+TODO: 
+    I skipped `Dependent Function Types` 
+        - advanced and rare to come across except when desigining libraries or using advanced libraries
+        - (https://docs.scala-lang.org/scala3/book/types-dependent-function.html)
+*/
+
+/*************************************************
+************************************************
+Summary
+------------------
+Scala has several other advanced types that are not shown in this book, including:
+
+    Type lambdas
+    Match types
+    Existential types
+    Higher-kinded types
+    Singleton types
+    Refinement types
+    Kind polymorphism
+
+For more details on most of these types, refer to the Scala 3 Reference documentation. 
+(https://docs.scala-lang.org/scala3/reference/overview.html)
+
+For singleton types see the literal types (https://scala-lang.org/files/archive/spec/3.4/03-types.html#literal-types) 
+section of the Scala 3 spec, and for refinement types (https://scala-lang.org/files/archive/spec/3.4/03-types.html), 
+see the refined types section.
+
+**************************************************
+*************************************************/
