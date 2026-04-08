@@ -1,6 +1,7 @@
-package learning
+package learning.fundamentals
 
 import scala.util.CommandLineParser
+import learning.domain.Color
 
 /*
 Adding a @main annotation to a method turns it into entry point of an executable program:

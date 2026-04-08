@@ -1,4 +1,4 @@
-package learning
+package learning.domain
 
 /*******************************************************************
  Advanced example: service-oriented design with a *family of types*

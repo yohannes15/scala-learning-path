@@ -1,4 +1,4 @@
-package learning
+package learning.domain
 
 import scala.compiletime.ops.string
 

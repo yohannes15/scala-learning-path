@@ -1,4 +1,4 @@
-package learning
+package learning.fundamentals
 
 /* 
 Scala uses packages to create namespaces that let you modularize programs

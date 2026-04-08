@@ -1,4 +1,4 @@
-package learning
+package learning.fundamentals
 
 // In Scala, the object keyword creates a Singleton object. Put another way, 
 // an object defines a class that has exactly one instance. Its init lazily when

@@ -1,4 +1,4 @@
-package learning
+package learning.fundamentals
 
 /*************************************************************
  *****************What is Functional Programming**************

@@ -1,4 +1,4 @@
-package learning
+package learning.fundamentals
 
 import java.io.StringWriter
 import java.io.PrintWriter

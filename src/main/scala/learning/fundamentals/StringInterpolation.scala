@@ -1,4 +1,4 @@
-package learning
+package learning.fundamentals
 
 // The s interpolator
 

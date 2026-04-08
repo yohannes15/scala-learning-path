@@ -1,5 +1,6 @@
-package learning
+package learning.fundamentals
 
+import learning.domain.Person
 import java.security.KeyException
 import java.io.IOException
 

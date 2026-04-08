@@ -1,5 +1,9 @@
 # Concurrency — `Future`
 
+## Why this is useful
+
+CPU-bound and I/O-bound work should not block your whole program. **Futures** (with a good **execution context**) give you a standard way to run work asynchronously and compose results without manually juggling raw `Thread`s. This folder collects notes toward that style.
+
 When you want to write parallel and concurrent applications in Scala, you can use the native Java `Thread` — but the Scala `Future` offers a more high-level and idiomatic approach, so it’s preferred, and covered in this chapter.
 
 ## Future
