@@ -59,7 +59,10 @@ import learning.functions.{
   methodReturningFuncExample2
 }
 import learning.contextualabstractions.{
-  extensionExample
+  extensionExample,
+  tediousParametersExample,
+  contextualParametersExample,
+  givenInstancesExample
 }
 
 @main
@@ -186,11 +189,13 @@ def hello(name: String): Unit =
   // leakyAbstractionscala2Example()
   // opaqueTypeExample()
   // structuralTypeExample()
-  structuralTypeExample2()
-
+  // structuralTypeExample2()
 
   //////// ContextualAbstractions
-  extensionExample()
+  // extensionExample()
+  tediousParametersExample()
+  contextualParametersExample()
+  givenInstancesExample()
 
 def helloInteractive() =
   println("Please enter your name")
