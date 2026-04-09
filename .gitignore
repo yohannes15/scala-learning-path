@@ -29,10 +29,13 @@ project/boot/
 .DS_Store
 Thumbs.db
 
-# editors (keep .vscode/ if you commit workspace settings)
+# editors — do not commit local debug config; other `.vscode/*` can still be tracked
+.vscode/launch.json
 .idea/
 *.iml
 *.swp
 *~
 
+
 .cursor/
+
