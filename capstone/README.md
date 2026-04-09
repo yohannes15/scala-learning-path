@@ -15,6 +15,7 @@ This is the **first capstone** in this repo: finish it before **[Phase B — Cat
 | Path | Purpose |
 | --- | --- |
 | **`README.md`** | This checklist (steps 1–4 + boss project) |
+| **`notes.md`** | Scratch notes for the capstone |
 | **`src/main/scala/capstone/`** | Code — packages `capstone.mini`, `capstone.receipt`, … |
 | **`samples/`** | Example `.txt` files for the boss receipt parser |
 
