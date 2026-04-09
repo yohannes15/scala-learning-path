@@ -7,9 +7,9 @@
 ## What’s covered
 
 | File | Topics |
-|------|--------|
+| --- | --- |
 | `CollectionsTasteOfScala.scala` | Overview: `List`, `LazyList`, folds, tuples, `Map`/`Set`/`Range` patterns |
 | `CollectionTypes.scala` | `Vector`, `Array`, `ArrayBuffer`, choosing concrete types |
 | `CollectionMethods.scala` | Common operations: `map`, `filter`, `head`/`tail`, `take`/`drop`, `reduce`, etc. |
 
-For **diagrams** of the collection hierarchy, see [`../static/README.md`](../static/README.md) and the project’s [`docs/diagrams.md`](../../../../../docs/diagrams.md).
+For **diagrams** of the collection hierarchy, see [`../static/README.md`](../static/README.md).

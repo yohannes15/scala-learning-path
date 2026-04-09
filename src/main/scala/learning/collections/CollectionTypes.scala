@@ -13,7 +13,7 @@ ranges, stacks, and queues.
 
 https://docs.scala-lang.org/overviews/collections-2.13/performance-characteristics.html
 
-`src/main/scala/learning/static/scala.collection-high-level.svg` (see `docs/diagrams.md`)
+`src/main/scala/learning/static/scala.collection-high-level.svg`
     - high level abstract classes or traits (generally have immutable and mutable implementations)
     - Iterable 
         -> Seq

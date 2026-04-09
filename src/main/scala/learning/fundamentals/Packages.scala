@@ -22,6 +22,29 @@ Creating A Package
   Person class in this proj will be found in
         `MyApp/src/main/scala/com/acme/myapp/model/Person.scala` file.
 
+------------------------------------
+`sbt` layout: packages vs folders under `src/main/scala`
+------------------------------------
+On the JVM / in sbt, **each package segment is usually one folder** under the
+Scala sources root:
+
+    package a.b.c   -->   src/main/scala/a/b/c/SomeFile.scala
+
+The `package` line at the top of the file should match that path (same dotted
+name as the folder trail). Examples:
+
+    package learning.fundamentals
+        -> src/main/scala/learning/fundamentals/Packages.scala
+
+    package capstone.receipt
+        -> src/main/scala/capstone/receipt/ReceiptApp.scala   (in a subproject)
+
+- **Tests** use the same rule under `src/test/scala/...`.
+- The compiler does not *require* path == package, but **keeping them aligned** is
+  the usual convention so Metals/IDEs and readers are not surprised.
+- **Libraries** often use reverse-DNS (`com.company.project`). **Apps / learning**
+  code often uses a short top-level name (`learning`, `capstone`).
+
 For example, when your domain name is `acme.com` and you’re working in the 
 `model` package of an application named `myapp`, your package declaration 
 looks like this:
@@ -31,7 +54,7 @@ looks like this:
     class Person ...
 
 The syntax shown above applies to the entire source file:
-    - all the defintions in the Person.scala belong to package com.acme.myapp.model
+    - all the definitions in the Person.scala belong to package com.acme.myapp.model
 
 It is possible to write package clauses that apply only to the definitions they contain:
 

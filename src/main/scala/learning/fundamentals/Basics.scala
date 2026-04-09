@@ -1,7 +1,6 @@
 package learning.fundamentals
 
 /* Tutorial entrypoint: `hello` lists the modules in study order — see `learning/README.md`
- * and `docs/diagrams.md` for SVGs.
  *
  * Run from the project root (quote the whole sbt command so `runMain` is parsed correctly):
  *   sbt "runMain learning.fundamentals.hello Scala"

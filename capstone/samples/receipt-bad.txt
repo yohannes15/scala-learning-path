@@ -1,0 +1,3 @@
+Good line|STANDARD|10.00
+this line is missing pipes
+BADCODE|STANDARD|1.00

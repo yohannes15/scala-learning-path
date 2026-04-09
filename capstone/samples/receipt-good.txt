@@ -1,0 +1,3 @@
+Coffee beans|STANDARD|4.50
+Annual fee|EXEMPT|0.00
+Snack|REDUCED|1.25

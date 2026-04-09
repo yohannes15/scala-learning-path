@@ -1,7 +1,7 @@
 package learning.types
 
 // All values have a type, including numerical values and functions.
-// See `src/main/scala/learning/static/type-hierarchy.svg` (also in docs/diagrams.md).
+// See `src/main/scala/learning/static/type-hierarchy.svg`
 
 /*
 `Any`:
