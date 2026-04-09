@@ -71,6 +71,14 @@ import learning.contextualabstractions.{
   realWorldExample,
   implictConversionExample
 }
+import learning.concurrency.{
+  futureExample,
+  futureMapExample,
+  futureCallbackExample,
+  futureAwaitExample,
+  futureAwaitReadyExample,
+  futureMultipleExample
+}
 
 @main
 def hello(name: String): Unit =
@@ -208,7 +216,15 @@ def hello(name: String): Unit =
   // wontCompileComparisonExample()
   // derivedCanEqualExample()
   // realWorldExample()
-  implictConversionExample()
+  // implictConversionExample()
+
+  ////// Concurrency /////////
+  // futureExample()
+  // futureMapExample()
+  // futureCallbackExample()
+  // futureAwaitExample()
+  // futureAwaitReadyExample()
+  futureMultipleExample()
 
 
 def helloInteractive() =

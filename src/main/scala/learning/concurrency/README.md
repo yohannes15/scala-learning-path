@@ -49,3 +49,20 @@ When you think about futures, it’s important to know that they’re intended a
 - How to run multiple futures in parallel
 - Combine results of futures in a `for` expression
 - Examples of methods that are used to handle the value in a future once it returns
+
+## Key Points
+
+To summarize, a few key points about futures are:
+
+- You construct futures to run tasks off of the main thread
+- Futures are intended for one-shot, potentially long-running concurrent tasks that eventually return a value; they create a temporary pocket of concurrency
+- A future starts running as soon as you construct it
+- A benefit of futures over threads is that they work with for expressions, and come with a variety of callback methods that simplify the process of working with concurrent threads
+- When you work with futures you don’t have to concern yourself with the low-level details of thread management
+- You handle the result of a future with callback methods like `onComplete` and `andThen`, or transformation methods like `filter`, `map`, etc.
+- The value inside a `Future` is always an instance of one of the `Try` types: `Success` or `Failure`
+- If you’re using multiple futures to yield a single result, combine them in a for expression
+
+Also, as you saw with the import statements in these examples, the Scala `Future` depends on an `ExecutionContext`.
+
+For more details about futures, see [Futures and Promises](https://docs.scala-lang.org/overviews/core/futures.html), an article that discusses futures, promises, and execution contexts. It also provides a discussion of how a for expression is translated into a flatMap operation.
