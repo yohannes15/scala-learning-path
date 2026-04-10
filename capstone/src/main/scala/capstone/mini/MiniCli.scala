@@ -1,11 +1,15 @@
 package capstone.mini
 
-/** Capstone 1 — tiny CLI (see `capstone/README.md` §1).
+/** Capstone 1 — **credit band** CLI: parse **credit score** + **income**, validate, then
+  *  **`Approved`** or **`Declined`** with reasons (thresholds on score and income — see
+  *  [[CreditInfo]]). [[InvalidInput]] / [[Either]] for bad input; full write-up in repo
+  *  `capstone/README.md` §1.
   *
-  * Replace the body with your project fake “credit band” (score + income →
-  * Approved / Declined with reason). Run: `sbt "runMain capstone.mini.MiniCli"`
+  *  Run from the **repo root** (`scala-tutorial` project — `capstone/` sources are compiled in):
+  *
+  *    - Interactive: `sbt "runMain capstone.mini.MiniCli"`
+  *    - One string arg: `sbt 'runMain capstone.mini.MiniCli "500 10000"'`
   */
-
 sealed trait AppError
 case class InvalidInput(msg: String) extends AppError
 
@@ -22,6 +26,8 @@ case class Declined(name: String = "Declined", reason: String = "NA")
     extends Decision
 
 object CreditInfo:
+  final val CREDIT_MIN_THRESHOLD = 450
+  final val INCOME_MIN_THRESHOLD = 7500
   /** Smart constructor. Inside the companion, `CreditInfo(cs, in)` would call
     * *this* `apply` again (recursive `Either`). After validation, build the
     * value with `new` so you get a plain [[CreditInfo]], not a nested `Either`.
@@ -44,16 +50,20 @@ object CreditInfo:
     if (income >= 0) then Right(income)
     else Left(InvalidInput("Negative income not allowed"))
 
-  /* In `match`, you can’t write `case i < 10000` — `<` isn’t a pattern. Bind a name
-   * (`case i`) and add a boolean guard: `case i if i < 10000 =>`. */
   def makeDecision(creditInfo: CreditInfo): Decision =
-    if creditInfo.income < 10000 then
-      Declined(reason = "Income below threshold")
-    else Approved(reason = "Testing for now")
+    if creditInfo.creditScore < CREDIT_MIN_THRESHOLD then
+      Declined(reason = s"Credit below threshold $CREDIT_MIN_THRESHOLD")
+    else if creditInfo.income < INCOME_MIN_THRESHOLD then
+      Declined(reason = s"Income below threshold $INCOME_MIN_THRESHOLD")
+    else Approved(reason = "Above threshold")
 
-@main def MiniCli(args: String*): Unit =
-  println("Input your credit_score and income in $ (separated by space or ,)")
-  val creditInfo = parseCreditInfo()
+
+@main def MiniCli(creditIncomeString: String = ""): Unit =
+  val line = 
+    if creditIncomeString.isEmpty then getInput() 
+    else creditIncomeString.trim()
+
+  val creditInfo = parseCreditInfo(line)
   creditInfo match
     case Left(err) =>
       println(s"Got error: ${err.msg}")
@@ -62,8 +72,11 @@ object CreditInfo:
       val decision = CreditInfo.makeDecision(ci)
       println(s"${decision.name}: ${decision.reason}")
 
-def parseCreditInfo(): Either[InvalidInput, CreditInfo] =
-  val line = scala.io.StdIn.readLine().trim
+def getInput(): String = 
+  println("Input your credit_score and income in $ (separated by space or ,)")
+  scala.io.StdIn.readLine().trim
+
+def parseCreditInfo(line: String): Either[InvalidInput, CreditInfo] =
   // Empty line → `"".split(...)` becomes `Array("")` (length 1),
   // so handle explicitly for a clearer error.
   if line.isEmpty then

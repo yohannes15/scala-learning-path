@@ -50,7 +50,7 @@ Set these up once; slow tooling kills momentum.
 
 **Exit criteria:** implement a CLI or small library that parses input and returns `Either[String, Result]`—same shape as validation in APIs.
 
-**Structured capstone (optional but recommended):** **[`capstone/README.md`](capstone/README.md)** — *Capstone 1* checklist (tiny CLI, reps, boss receipt project) before opening Cats docs.
+**Structured capstone (optional but recommended):** **[`capstone/README.md`](capstone/README.md)** — *Capstone 1* checklist (**§1 MiniCli** credit-band CLI is implemented there; optional AoC/Exercism reps; **boss** receipt parser) before opening Cats docs.
 
 ---
 

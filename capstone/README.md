@@ -16,7 +16,7 @@ This is the **first capstone** in this repo: finish it before **[Phase B — Cat
 | --- | --- |
 | **`README.md`** | This checklist (steps 1–4 + boss project) |
 | **`notes.md`** | Scratch notes for the capstone |
-| **`src/main/scala/capstone/`** | Code — packages `capstone.mini`, `capstone.receipt`, … |
+| **`src/main/scala/capstone/`** | Code — `capstone.mini` (**MiniCli** — credit band CLI, implemented), `capstone.receipt` (boss **ReceiptApp**, stub) |
 | **`samples/`** | Example `.txt` files for the boss receipt parser |
 
 ---
@@ -29,10 +29,23 @@ Cats assumes you’re comfortable with **generic types**, **`map` / `flatMap` in
 
 ## 1. Tiny CLI (Phase A capstone)
 
-- [ ] Use package **`capstone.mini`** (stub: `src/main/scala/capstone/mini/MiniCli.scala`) — **not** the giant `hello` in `Basics.scala`.
-- [ ] One **`@main`** that reads **stdin** or **one string argument** (your choice).
-- [ ] Parse input into a **`case class`**; on bad input return **`Either[String, T]`** and print a **clear** left/right outcome.
-- [ ] **Ideas (pick one):** guess-the-number, mood logger (`good|ok|bad` → emoji), fake “credit band” (`score` + `income` → `Approved` / `Declined` with reason).
+**Implemented:** [`MiniCli.scala`](src/main/scala/capstone/mini/MiniCli.scala) — fake **credit band**: **FICO-style score** + **income (USD)** → **`Approved`** or **`Declined`** with a **reason** string.
+
+| Piece | What you built |
+| --- | --- |
+| **Input** | One line with **two** numbers, separated by **space or comma** (regex split `[,\\s]+`). **`@main`** takes an optional **single string** argument; if omitted / empty, **`stdin`** is read after a prompt. |
+| **Model** | **`CreditInfo`** (`creditScore`, `income`) with a **private** constructor; only **`CreditInfo.apply`** can build values after validation. |
+| **Errors** | **`Either[InvalidInput, CreditInfo]`** — not `String` on the left; **`InvalidInput`** carries the message. Parsing and validation short-circuit on first **`Left`**. |
+| **Validation** | Score in **250–900**; income **≥ 0**. |
+| **Decision** | Sealed-style **`Decision`**: **`Approved`** / **`Declined`**, each with **`name`** + **`reason`**. Rules use **`CREDIT_MIN_THRESHOLD`** (450) and **`INCOME_MIN_THRESHOLD`** (7500): decline if score or income is below the corresponding threshold; otherwise approve. |
+| **UX** | **`Left`**: print error message. **`Right`**: echo score/income, then print decision **`name`**: **`reason`**. |
+
+Checklist (this CLI):
+
+- [x] Package **`capstone.mini`** — **`MiniCli.scala`** (not `Basics.scala` “hello”).
+- [x] One **`@main`**: **stdin** (prompt) **or** one **string** argument (default `""` → interactive).
+- [x] Parse into a **`case class`**; failures as **`Either`**; clear **`println`** for left/right.
+- [x] Theme: **credit band** (score + income → approved / declined with reason).
 
 ---
 
@@ -111,12 +124,23 @@ Main roadmap: **[README.md](../README.md)** → **Phase B — Cats → Cats Effe
 
 ---
 
-## Run (stubs)
+## Run
 
-From the **repository root**:
+From the **repository root** (this repo uses a **single** sbt project; `capstone/` sources are on the compile path — see root `build.sbt`).
+
+**MiniCli (credit band — implemented):**
 
 ```bash
+# Interactive: prompt, then type e.g. 500 10000
 sbt "runMain capstone.mini.MiniCli"
+
+# One argument (non-interactive):
+sbt 'runMain capstone.mini.MiniCli "500 10000"'
+```
+
+**Receipt boss (`ReceiptApp`) — stub until you implement the boss section:**
+
+```bash
 sbt "runMain capstone.receipt.ReceiptApp capstone/samples/receipt-good.txt"
 ```
 

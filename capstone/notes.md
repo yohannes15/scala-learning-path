@@ -1,6 +1,10 @@
-# Capstone notes — `MiniCli` input parsing
+# Capstone notes — `MiniCli` (credit band)
 
-## Regex `[,\\s]+` (Scala string passed to `split`)
+Scratch notes for **Capstone 1 §1**: fake credit decision CLI — parse score + income, **`Either`**, regex `split`, empty-line edge case. See **`capstone/README.md`** for the full project description.
+
+## Input parsing
+
+### Regex `[,\\s]+` (Scala string passed to `split`)
 
 - Splits on **one or more** commas and/or **whitespace** (space, tab, …).
 - Examples that yield **two tokens**: `"720 50000"`, `"720,50000"`, `"720 , 50000"`.
