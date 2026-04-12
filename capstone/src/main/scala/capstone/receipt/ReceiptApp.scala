@@ -1,6 +1,9 @@
 package capstone.receipt
 
 import geny.Generator
+import scala.util.Try
+import scala.util.Failure
+import scala.util.Success
 
 sealed trait AppError
 case class LineError(msg: String = "error processing line") extends AppError
@@ -22,29 +25,50 @@ case class Receipt(description: String, taxCode: TaxCode, price: BigDecimal)
     // Generator is lazy: effects (println) only run when the stream is traversed — use foreach, not map alone.
     case Right(g) => parseReceipt(g)
 
-def parseReceipt(stream: Generator[String]) = 
+def processReceipt(receipt: Receipt): Unit = 
+  println(
+    s"description: ${receipt.description}. " +
+    s"taxcode: ${receipt.taxCode}. " +
+    s"price: ${receipt.price}"
+  )
+
+def parseReceipt(stream: Generator[String]): Unit = 
   stream.zipWithIndex.foreach { (line, index) =>
     parseLine(line, index + 1) match
-      case Right(receipt) =>
-        println(
-          s"description: ${receipt.description}. " +
-            s"taxcode: ${receipt.taxCode}. " +
-            s"price: ${receipt.price}"
-        )
+      case Right(receipt) => processReceipt(receipt)
       case Left(err) => println(s"error: ${err.msg}")
   }
 
 def parseLine(line: String, line_no: Int): Either[LineError, Receipt] =
   // `split` takes a regex; `|` is special — escape for a literal pipe.
   val lineTokens = line.split("\\|")
+  print(s"$line_no: ")
   if lineTokens.length != 3 then
     Left(LineError(s"Expected format {description}|{taxCode}|{price}. Got: $line"))
+  else 
+    for
+      description <- parseDescription(lineTokens(0))
+      taxCode <- parseTaxCode(lineTokens(1))
+      price <- parsePrice(lineTokens(2))
+    yield
+      Receipt(description, taxCode, price)
+
+def parseTaxCode(taxCode: String): Either[LineError, TaxCode] = 
+  Try { TaxCode.valueOf(taxCode.trim().capitalize) } match
+    case Failure(exception) => Left(LineError(s"Error parsing tax code: ${exception.toString}"))
+    case Success(code) => Right(code)
+  
+def parseDescription(description: String): Either[LineError, String] = 
+  val desc = description.trim
+  if desc.length > 40 then 
+    Left(LineError("description can't be more than 40 characters"))
   else
-    val description = lineTokens(0).trim()
-    val taxCode = TaxCode.valueOf(lineTokens(1).trim().capitalize)
-    lineTokens(2).trim().toDoubleOption match
-      case Some(value) => Right(Receipt(description, taxCode, BigDecimal.decimal(value)))
-      case _ => Left(LineError(s"Invalid price value on $line_no. "))
+    Right(desc)
+
+def parsePrice(price: String): Either[LineError, BigDecimal] = 
+  price.trim().toDoubleOption match
+    case Some(value) => Right(BigDecimal.decimal(value))
+    case _ => Left(LineError(s"Unable to parse price. Got: $price"))
 
 def getFileStream(textFile: String): Either[FileError, Generator[String]] = 
   var samplesDir = os.pwd /  "capstone" / "samples"
