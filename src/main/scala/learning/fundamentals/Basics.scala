@@ -78,6 +78,9 @@ import learning.concurrency.{
   futureAwaitReadyExample,
   futureMultipleExample
 }
+import learning.misc.{
+  fileOperationsExample
+}
 
 @main
 def hello(name: String): Unit =
@@ -223,7 +226,10 @@ def hello(name: String): Unit =
   // futureCallbackExample()
   // futureAwaitExample()
   // futureAwaitReadyExample()
-  futureMultipleExample()
+  // futureMultipleExample()
+
+  //// File Operations //////
+  fileOperationsExample()
 
 
 def helloInteractive() =

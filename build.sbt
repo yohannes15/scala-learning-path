@@ -17,7 +17,8 @@ lazy val root = (project in file("."))
     // Capstone code + docs live under `capstone/` (see capstone/README.md)
     Compile / unmanagedSourceDirectories += baseDirectory.value / "capstone" / "src" / "main" / "scala",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.19" % Test
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test,
+      "org.scala-lang" %% "toolkit" % "0.7.0"
     )
   )
 
