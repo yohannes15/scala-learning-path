@@ -22,6 +22,15 @@ lazy val capstone = (project in file("capstone"))
     )
   )
 
+// Sample mini-project (sources under `sbtsampleproj/`)
+lazy val sbtsmallproj = (project in file("sbtsampleproj"))
+  .settings(
+    name := "HelloWorld",
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test
+    )
+  )
+
 lazy val root = (project in file("."))
   .settings(
     name := "scala-tutorial",
