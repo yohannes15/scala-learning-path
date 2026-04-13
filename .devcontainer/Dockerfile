@@ -1,5 +1,5 @@
-# Start from the official Scala + sbt image (includes Java 17, sbt 1.10, Scala 3.6).
-FROM sbtscala/scala-sbt:eclipse-temurin-17.0.13_11_1.10.7_3.6.3
+# Start from the official Scala + sbt image (includes Java 17, sbt, Scala 3.8.2).
+FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.12.8_3.8.2
 
 # Switch to root so we can install packages and change permissions.
 USER root

@@ -12,7 +12,7 @@ or just a specific version of OS-lib
 
     `lazy val example = project.in(file("."))
     .settings(
-        scalaVersion := "3.4.2",
+        scalaVersion := "3.8.2",
         libraryDependencies += "org.scala-lang" %% "toolkit" % "0.7.0"
         // libraryDependencies += "com.lihaoyi" %% "os-lib" % "0.11.3"
     )`

@@ -52,13 +52,13 @@ sbt (launcher)
 ```scala
 name         := "HelloWorld"
 version      := "0.1"
-scalaVersion := "3.8.3"
+scalaVersion := "3.8.2"
 ```
 
 **Multi-project style** — explicit `lazy val` per subproject:
 
 ```scala
-ThisBuild / scalaVersion := "3.6.3"   // applies to all subprojects
+ThisBuild / scalaVersion := "3.8.2"   // applies to all subprojects
 
 lazy val root = (project in file("."))
   .settings(
@@ -76,7 +76,7 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.19" % Test
 //  └─ Group ID    │   └─ Artifact  └─ Version  └─ Scope
 //                %%
-//                 └─ auto-appends Scala version suffix (e.g. scalatest_3)
+//                 └─ picks the right artifact for your Scala binary version (e.g. scalatest_3)
 //                  % would pin the exact artifact name (used for Java libs)
 )
 ```

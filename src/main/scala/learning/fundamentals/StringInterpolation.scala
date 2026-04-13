@@ -155,6 +155,7 @@ def patternMatchingCustomExtractorExample(): Unit =
     val pt: Point = Point(2,3)
     pt match
         case p"$x,$y" => println(x + y) // x = 2, y = 3
+        case _ => println("not sure what this is")
     
 
     

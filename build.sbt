@@ -7,7 +7,7 @@
 // .settings(...) groups all settings for that project
 // Designed to support multiple subprojects in one build
 
-ThisBuild / scalaVersion := "3.6.3"
+ThisBuild / scalaVersion := "3.8.2"
 ThisBuild / organization := "learning.local"
 ThisBuild / version      := "0.1.0-SNAPSHOT"
 
@@ -37,6 +37,16 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.19" % Test,
       "org.scala-lang" %% "toolkit" % "0.7.0"
+    )
+  )
+
+lazy val cats = (project in file("cats"))
+  .settings(
+    name := "learning-cats",
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "3.2.20" % Test,
+      "org.scala-lang" %% "toolkit" % "0.1.7",
+      "org.typelevel" %% "cats-core" % "2.13.0"
     )
   )
 
