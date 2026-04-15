@@ -2,17 +2,14 @@
 
 ## Why this is useful
 
-Type classes are a powerful tool used in functional programming to enable ad-hoc polymorphism, more commonly known as overloading. 
-Where many object-oriented languages leverage subtyping for polymorphic code, functional programming tends towards a combination 
-of parametric polymorphism (think type parameters, like Java generics) and ad-hoc polymorphism.
-
+Type classes are a powerful tool used in functional programming to enable ad-hoc polymorphism, more commonly known as overloading. Where many object-oriented languages leverage subtyping for polymorphic code, functional programming tends towards a combination of parametric polymorphism (think type parameters, like Java generics) and ad-hoc polymorphism.
 
 ```scala
 def sumInts(list: List[Int]): Int = list.foldRight(0)(_ + _)
 
 def concatStrings(list: List[String]): String = list.foldRight("")(_ ++ _)
 
-def unionSets[A](list: List[Set[A]]): Set[A] = list.foldRight(Set.empty[A])(_ union _)
+def unionSets[A] (list: List[Set[A]]): Set[A] = list.foldRight(Set.empty[A])(_ union _)
 ```
 
 The above snippets show code that sums a list of integers, concatenates a list of strings, and unions a list of sets.
@@ -39,7 +36,8 @@ val intAdditionMonoid: Monoid[Int] = new Monoid[Int]:
     def combine(x: Int, y: Int): Int = x + y
 
 // function against the interface to combine all elements in a list
-def combineAll[A](list: List[A], monoid: Monoid[A]): A = list.foldRight(monoid.empty)(monoid.combine)
+def combineAll[A] (list: List[A], monoid: Monoid[A]): A = 
+  list.foldRight(monoid.empty)(monoid.combine)
 ```
 
 ## Type classes vs. subtyping
@@ -49,7 +47,7 @@ of using subtype constraints.
 
 ```scala
 // Subtyping at the call site — same “where does empty come from?” issue
-def combineAll[A <: Monoid[A]](list: List[A]): A =
+def combineAll[A <: Monoid[A]] (list: List[A]): A =
   list match
     case Nil =>
       ??? // no `A` in scope: cannot call `.empty` or build a witness from types alone
@@ -76,7 +74,7 @@ of the type’s monoid structure, not of a particular value.
 For another motiviating difference, consider the simple pair type.
 
 ```scala
-final case class Pair[A, B](first: A, second: B)
+final case class Pair[A, B] (first: A, second: B)
 ```
 
 Defining a `Monoid` for `Pair` => `Monoid[Pair[A, B]]` depends on the ability to define a `Monoid[A]` and a 
@@ -86,12 +84,12 @@ second pair. With subtyping such a constraint would be encoded as something like
 
 ```scala
 /// Subtyping
-final case class Pair[A <: Monoid[A], B <: Monoid[B]](first: A, second: B) extends Monoid[Pair[A, B]]:
+final case class Pair[A <: Monoid[A], B <: Monoid[B]] (first: A, second: B) extends Monoid[Pair[A, B]]:
   def empty: Pair[A, B] = ???
   def combine(x: Pair[A, B], y: Pair[A, B]): Pair[A, B] = ???
 ```
 
-Not only is the type signature of `Pair` now messy but it also forces all instaces of `Pair` to have a `Monoid`
+Not only is the type signature of `Pair` now messy but it also forces all instances of `Pair` to have a `Monoid`
 instance, whereas `Pair` should be able to carry any types it wants and if the types happens to have a `Monoid`
 instance then so would it. 
 
@@ -102,24 +100,21 @@ We could try bubbling down the constraint into the methods themselves. Before we
 - `A <:< B` is both a sentence and a type name:
   - Read it as: “`A` is a subtype of `B`” (same idea as `A <: B` in bounds).
   - As a type, `A <:< B` is the type of evidence that this subtyping is true.
-
 - `scala.<:<` is the class in the standard library that implements that evidence. The name looks odd because `<:` 
 is already used for bounds, so they used `<:<` for this type.
-
 - At compile time, if the compiler knows `A <: B`, it can provide an implicit value of type `A <:< B`. Then your 
 code can treat an `A` as a `B` where that proof is in scope (your `eva`, `evb` parameters are asking for that proof at the call site).
-
 - **Why `eva(first)` looks like a “call”:** `eva` is a normal **value** (passed implicitly or explicitly) whose type
-  is `A <:< Monoid[A]`. In the standard library, `scala.<:<` **extends** `A => B`, so that value is also a
-  **function** from `A` to `B`. Writing `eva(first)` applies that function: the compiler treats the result as
-  a `Monoid[A]`, so you can write `eva(first).empty` even though `first` was only typed as `A` before.
+is `A <:< Monoid[A]`. In the standard library, `scala.<:<` **extends** `A => B`, so that value is also a
+**function** from `A` to `B`. Writing `eva(first)` applies that function: the compiler treats the result as
+a `Monoid[A]`, so you can write `eva(first).empty` even though `first` was only typed as `A` before.
 
 So: `scala.<:<` is not a new operator — it is the library type that represents “proof that `A` is a subtype of `B`,” and `A <:< B` in your method means “this method only typechecks if the compiler can supply that proof.”
 
 ```scala
 // Require implicit proof that `A <: Monoid[A]` (and same for `B`) at call sites that need it hence
 // the implicit parameters.
-final case class Pair[A, B](first: A, second: B) extends Monoid[Pair[A, B]] {
+final case class Pair[A, B] (first: A, second: B) extends Monoid[Pair[A, B]] {
   // Pointwise monoid: use `first` / `second` only as *witnesses* so `eva` / `evb` can treat `A` / `B`
   // as `Monoid[...]` and call `.empty` / `.combine` (identity should not *semantically* depend on them).
   def empty(implicit eva: A <:< Monoid[A], evb: B <:< Monoid[B]): Pair[A, B] =
@@ -143,16 +138,15 @@ final case class Pair[A, B](first: A, second: B) extends Monoid[Pair[A, B]] {
 But now these still do not conform to the interface of `Monoid`: the implicit parameters change the method
 signatures, so the trait’s members remain unimplemented.
 
-
 ## Implicit derivation
 
 Note that a `Monoid[Pair[A, B]]` is derivable given `Monoid[A]` and `Monoid[B]`:
 
 ```scala
 
-final case class Pair[A, B](first: A, second: B)
+final case class Pair[A, B] (first: A, second: B)
 
-def deriveMonoidPair[A, B](A: Monoid[A], B: Monoid[B]): Monoid[Pair[A, B]] = 
+def deriveMonoidPair[A, B] (A: Monoid[A], B: Monoid[B]): Monoid[Pair[A, B]] = 
   new Monoid[Pair[A, B]]:
     def empty: Pair[A, B] = 
       Pair(A.empty, B.empty)
@@ -167,7 +161,7 @@ We can do this through Scala 3's `given` syntax or `implicit` syntax in Scala 2.
 
 import cats.Monoid
 
-final case class Pair[A, B](first: A, second: B)
+final case class Pair[A, B] (first: A, second: B)
 
 
 object Pair:
@@ -179,7 +173,7 @@ object Pair:
         Pair(Monoid[A].combine(x.first, y.first), Monoid[B].combine(x.second, y.second))
 
   // scala2 implicit
-  implicit def monoidPair[A, B](implicit A: Monoid[A], B: Monoid[B]): Monoid[Pair[A, B]] =
+  implicit def monoidPair[A, B] (implicit A: Monoid[A], B: Monoid[B]): Monoid[Pair[A, B]] =
     new Monoid[Pair[A, B]]:
       def empty: Pair[A, B] = Pair(A.empty, B.empty)
       def combine(x: Pair[A, B], y: Pair[A, B]): Pair[A, B] =
@@ -191,15 +185,15 @@ argument implicitly, and any instances of the type class to be implicit.
 
 ```scala
 // scala3 given
-def combineAll[A](list: List[A])(using A: Monoid[A]): A =
+def combineAll[A] (list: List[A])(using A: Monoid[A]): A =
   list.foldRight(A.empty)(A.combine)
 
 // scala3 given syntactic sugar
-def combineAll[A : Monoid](list: List[A]): A =
+def combineAll[A : Monoid] (list: List[A]): A =
   list.foldRight(Monoid[A].empty)(Monoid[A].combine)
 
 // scala2 implicit
-def combineAll2[A](list: List[A])(implicit A: Monoid[A]): A =
+def combineAll2[A] (list: List[A])(implicit A: Monoid[A]): A =
   list.foldRight(A.empty)(A.combine)
 
 // Now we can also combineAll a list of `Pairs` as long as Pair's type parameters themselves 
@@ -217,13 +211,13 @@ combineAll(List(Pair(1, "hello"), Pair(2, " "), Pair(3, "world")))
 In many cases, including the combineAll function above, the implicit arguments can be written with syntactic sugar.
 
 ```scala
-def combineAll[A : Monoid](list: List[A]): A = ???
+def combineAll[A : Monoid] (list: List[A]): A = ???
 ```
 
 This is syntactic sugar for:
 
 ```scala
-def combineAll[A](list: List[A])(using A: Monoid[A]): A =
+def combineAll[A] (list: List[A])(using A: Monoid[A]): A =
   list.foldRight(A.empty)(A.combine)
 ```
 
@@ -235,9 +229,9 @@ import cats.Monoid
 
 // Defined in the standard library, shown for illustration purposes
 // Implicitly looks in implicit scope for a value of type `A` and just hands it back
-def implicitly[A](implicit ev: A): A = ev
+def implicitly[A] (implicit ev: A): A = ev
 
-def combineAll[A : Monoid](list: List[A]): A =
+def combineAll[A : Monoid] (list: List[A]): A =
   list.foldRight(implicitly[Monoid[A]].empty)(implicitly[Monoid[A]].combine)
 ```
 
@@ -249,7 +243,7 @@ object Monoid {
   def apply[A : Monoid]: Monoid[A] = implicitly[Monoid[A]]
 }
 
-def combineAll[A : Monoid](list: List[A]): A =
+def combineAll[A : Monoid] (list: List[A]): A =
   list.foldRight(Monoid[A].empty)(Monoid[A].combine)
 
 ```
