@@ -44,7 +44,7 @@ object OptionFlatMap:
         case Left(nextA) => tailRecM(nextA)(f)
       }
 
-  def example(): Unit =
+  def optionFlatMapExample(): Unit =
     println(optionFlatMap.flatMap(Some(1))(x => Some(x + 1))) // Some(2)
     println(
       optionFlatMap.tailRecM(11)(n =>
@@ -52,6 +52,6 @@ object OptionFlatMap:
       )
     )
 
-/** Run: `sbt "cats/runMain learning.typeclasses.monadExamples"` */
+/** Run: `sbt "cats/runMain learning.typeclasses.flatMapExamples"` */
 @main def flatMapExamples(): Unit =
-  OptionFlatMap.example()
+  OptionFlatMap.optionFlatMapExample()

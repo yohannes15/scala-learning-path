@@ -93,7 +93,7 @@ object OptionMonad:
             case Left(nextA) => tailRecM(nextA)(f)
         }
 
-  def example(): Unit =
+  def optionMonadExample(): Unit =
     println(monadForOption.flatMap(Some(1))(x => Some(x + 1))) // Some(2)
     println(
       monadForOption.tailRecM(10)(n =>
@@ -103,4 +103,4 @@ object OptionMonad:
 
 /** Run: `sbt "cats/runMain learning.typeclasses.monadExamples"` */
 @main def monadExamples(): Unit =
-  OptionMonad.example()
+  OptionMonad.optionMonadExample()
