@@ -192,11 +192,13 @@ object ApplicativeExamples:
     // Await (fine for a tiny demo) so the value is ready when we stringify.
     println(s"composed applicative ${Await.result(composed, 0.5.seconds)}")
 
-    // Same composed applicative, but you ask for it via `Nested` — a zero-cost wrapper that
-    // tells Cats which instance to use when several could apply. The last type arg of
-    // `Nested[Future, Option, X]` is written as a type lambda in Scala 3 (`*` in Cats docs).
-    // Here X is only a name for that remaining parameter. You could write
-    // [SumValue] =>> Nested[Future, Option, SumValue] — same meaning.
+    /** Same composed applicative, but you ask for it via `Nested` — a zero-cost
+      * wrapper that tells Cats which instance to use when several could apply.
+      * The last type arg of `Nested[Future, Option, X]` is written as a type
+      * lambda in Scala 3 (`*` in Cats docs). Here X is only a name for that
+      * remaining parameter. You could write [SumValue] =>> Nested[Future,
+      * Option, SumValue] — same meaning.
+      */
     val nested =
       Applicative[[X] =>> Nested[Future, Option, X]]
         .map2(Nested(x), Nested(y))(_ + _)
@@ -204,6 +206,88 @@ object ApplicativeExamples:
     println(
       s"nested composed applicative ${Await.result(nested.value, 0.5.seconds)}"
     ) // Some(102);
+
+  /** When you know you have exactly 3 independent `F` values, use `map3` /
+    * `tuple3` / `ap3` (and similarly `map2` … `map22` in Cats) instead of
+    * nesting `product` by hand.
+    *
+    * Example: three `Option[String]` (username, password, URL). The combining
+    * function can return a plain value or another `Option` — if it returns
+    * `Option[Connection]`, the outer `Option` is from `map3` and the inner from
+    * your function, hence `Option[Option[Connection]]` unless you `flatten` or
+    * change the function to return `Connection` directly.
+    */
+  def composeNDifferentEffects() =
+    import java.sql.Connection
+
+    val username: Option[String] = Some("username")
+    val password: Option[String] = Some("password")
+    val url: Option[String] = Some("some.login.url.here")
+
+    // Stub: pretend this can fail internally too (`Option`), like the Cats doc example.
+    def attemptConnect(
+        username: String,
+        password: String,
+        url: String
+    ): Option[Connection] = None
+
+    // `map3` lifts a function `(A,B,C) => R` into `F` — here `R = Option[Connection]`,
+    // so `res: Option[Option[Connection]]` (double `Option`).
+    val res = Applicative[Option].map3(username, password, url)(attemptConnect)
+    println(s"map3 result (Option of optional connection): $res")
+    println(s"after flatten: ${res.flatten}")
+
+  /** When the number of effects is not fixed (e.g. a list from input or a DB),
+    * you traverse: turn `List[A]` into `F[List[B]]` using `A => F[B]` — here
+    * `F = Option`. Any `None` from `f` makes the whole result `None`
+    * (short-circuit). Same idea as `Future.traverse` / `sequence`, but for
+    * `Option`.
+    *
+    * Implementation uses `foldRight` so we build the result list with `::` in
+    * linear time and preserve order (`head` pairs with the rest of the fold
+    * first).
+    */
+  def traverseOption[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] =
+    // `foldRight(z)((a, acc) => ...)`: current element `a`, then `acc` = fold of the tail to the
+    // right — opposite order from `foldLeft(z)((acc, a) => ...)`, which threads accumulator first.
+    as.foldRight(Some(List.empty[B]): Option[List[B]]) { (a, acc) =>
+      val optB: Option[B] = f(a)
+      // `optB` and `acc` are both `Option` — combine them with `map2` (same as `Option` applicative).
+      // `_ :: _` = `(head, tail) => head :: tail` — prepend one `B` to the list-in-progress.
+      Applicative[Option].map2(optB, acc)(_ :: _)
+    }
+
+  /** Implementation for Either — you can see there's nothing specific to Option or
+    * Either in the loop body. The implementations of `traverseOption` and
+    * `traverseEither` are more or less identical, except the initial accumulator
+    * to `foldRight`. That difference disappears in `traverse` below by delegating
+    * to `Applicative#pure` for the empty list.
+    */
+  def traverseEither[L, A, B](
+      as: List[A]
+  )(f: A => Either[L, B]): Either[L, List[B]] =
+    as.foldRight(Right(List.empty[B]): Either[L, List[B]]) { (a, acc) =>
+      val eitherB: Either[L, B] = f(a)
+      // Same `map2` + `::` idea; `Applicative` for `Either[L, ·]` needs the type lambda in Scala 3.
+      Applicative[[X] =>> Either[L, X]].map2(eitherB, acc)(_ :: _)
+    }
+
+  /** Generalizing `Option` and `Either` to any `F[_]: Applicative` gives us the
+    * fully polymorphic version. Existing data types with `Applicative`
+    * instances (`Future`, `Option`, `Either[L, *], Try`) can call it by fixing
+    * `F` appropriately, and new data types need only be concerned with
+    * implementing `Applicative` to do so as well. This function is provided by
+    * cats via the `Traverse[List]` instance and syntax.
+    *
+    * With this addition of traverse, we can now compose any number of independent
+    * effects, statically known or otherwise.
+    */
+  def traverse[F[_]: Applicative, A, B](as: List[A])(f: A => F[B]): F[List[B]] =
+    as.foldRight(Applicative[F].pure(List.empty[B]): F[List[B]]) { (a, acc) =>
+      val fb: F[B] = f(a)
+      // Same `map2` + `::`; empty list comes from `pure` so the seed matches any `F`.
+      Applicative[F].map2(fb, acc)(_ :: _)
+    }
 
 /** Run: `sbt "cats/runMain learning.typeclasses.applicativeExample"` */
 @main def applicativeExample(): Unit =
@@ -215,3 +299,19 @@ object ApplicativeExamples:
   println(lost) // None
   tryingToComposeTwoEffectfulValuesWithMap()
   applicativesCompose()
+  composeNDifferentEffects()
+  println(traverseOption(List(1, 2, 3))(i => Some(i): Option[Int]))
+  println(
+    traverseEither(List(1, 2, 3))(i =>
+      if (i % 2 != 0) Left(s"${i} is not even") else Right(i / 2)
+    )
+  )
+  println(
+    traverse(List(2, 4, 6))(i =>
+      if (i % 2 != 0) Left(s"${i} is not even") else Right(i / 2)
+    )
+  )
+  // Easier syntax provided by cats (needs `import cats.syntax.all._` in scope).
+  import cats.syntax.all.*
+  println(List(1, 2, 3).traverse(i => Some(i): Option[Int]))
+  // e.g. Option[List[Int]] = Some(List(1, 2, 3))
