@@ -2,7 +2,21 @@ package learning.typeclasses
 
 object LearningFoldable:
   import cats.Eval 
-
+  /**
+    * Foldable type class instances can be defined for data structures that can be 
+    * folded to a summary value. 
+    * 
+    * Foldable[F] is implemented in terms of two basic methods:
+    *
+    * foldLeft(fa, b)(f) eagerly performs a left-associative fold over fa.
+    * 
+    * foldRight(fa, b)(f) lazily performs a right-associative fold over fa.
+    *
+    * Looking at Foldable examples below we can note that when defining some new data
+    * structure, if we can define a `foldLeft` and `foldRight` we are able to provide 
+    * many other useful operations, if not always the most efficient implementations,
+    * over the structure without further implementation.
+    */
   trait Foldable[F[_]]:
     /**
       * Walks the structure `fa` from the “left” (first element / outer layer
@@ -54,6 +68,14 @@ object LearningFoldable:
       * For many finite structures, `foldLeft` and `foldRight` agree on results
       * when `f` encodes an associative monoid; they differ in evaluation order,
       * laziness, and what laws you want instances to satisfy.
+      * 
+      * This will prevent operations which are lazy in their right hand argument
+      * to traverse the entire structure unnecessarily. 
+      * 
+      * Unfortunately, since foldRight is defined on many collections - this 
+      * extension clashes with the operation defined in Foldable. To get past 
+      * this and make sure you're getting the lazy foldRight defined in Foldable, 
+      * there's an alias foldr:
       *
       * @param fa  structure holding `A` values to visit
       * @param lb  lazy/eval-wrapped initial accumulator for the “after all `A`s” case
@@ -61,6 +83,25 @@ object LearningFoldable:
       * @return    `Eval` of the final `B` when forced (e.g. `.value`)
       */
     def foldRight[A, B](fa: F[A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B]
+
+    /**
+      * This is eager and bad. Can fail on examples like
+      * val allFalse = LazyList.continually(false) // an infinite list of false values
+      * and if you wanted to reduce this to a single false value using the logical and (&&).
+      * You intuitively know that the result of this operation should be false. It is not
+      * necessary to consider the entire list in order to determine this result, you only
+      * need to consider the first value. Using foldRight from the standard library will
+      * try to consider the entire list, and thus will eventually cause an out-of-memory error:
+
+        // beware! throws OutOfMemoryError, which is irrecoverable
+        allFalse.foldRight(true)(_ && _)
+      * With the lazy foldRight on Foldable, the calculation ends after looking at one value
+      * @param fa structure holding `A` values to visit
+      * @param b initial accumulator for the “after all `A`s” case
+      * @param f combine each `A` with the (possibly deferred) fold of the rest
+      * @return
+      */
+    def foldRightEAGER[A, B](fa: F[A], b: B)(f: (A, B) => B): B = ???
 
 /**
   * Consider a simple list like List(1, 2, 3). You could sum the numbers of this
@@ -222,3 +263,9 @@ object LearningFoldable:
   // With a `None` in the nest, Cats' instance sums the present ints (1 + 2).
   // Result: 3
   printfout("fold (Nested with None)", Foldable[NestedListOption].fold(listOption1))
+
+  // Result = false
+  val allFalse = LazyList.continually(false)
+  printfout("foldRight Lazy", Foldable[LazyList].foldRight(allFalse, Eval.True)((a,b) => if (a) b else Eval.False).value)
+  // Result = false
+  printfout("foldr (alias for foldRight)", allFalse.foldr(Eval.True)((a,b) => if (a) b else Eval.False).value)
