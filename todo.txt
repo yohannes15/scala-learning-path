@@ -3,7 +3,3 @@ Data types:
 2. Id
 3. Nested
 4. Validated (** Important **)
-
-Typeclasses:
-1. Eq
-2. Show
