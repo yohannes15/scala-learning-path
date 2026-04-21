@@ -69,8 +69,8 @@ object LearningTraverse:
     val t: Tree[Int] =
       Tree.Branch(
         10,
-        Tree.Branch(4, Tree.Empty(), Tree.Empty()),
-        Tree.Branch(7, Tree.Empty(), Tree.Empty())
+        Tree.Branch(4, Tree.Empty, Tree.Empty),
+        Tree.Branch(7, Tree.Empty, Tree.Empty)
       )
 
     def halfIfEven(n: Int): Option[Int] = if n % 2 == 0 then Some(n / 2) else None
@@ -87,8 +87,8 @@ object LearningTraverse:
     val t2: Tree[Int] =
       Tree.Branch(
         8,
-        Tree.Branch(4, Tree.Empty(), Tree.Empty()),
-        Tree.Empty()
+        Tree.Branch(4, Tree.Empty, Tree.Empty),
+        Tree.Empty
       )
     println(s"all even → Some tree: ${t2.traverse(halfIfEven)}")
 
