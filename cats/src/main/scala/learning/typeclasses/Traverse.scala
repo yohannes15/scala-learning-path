@@ -52,7 +52,6 @@ object LearningTraits:
     * same `Traverse[F]` shape as `List`. Generic code takes `(using ev: Traverse[F])` and
     * calls `ev.traverse(fa)(f)`.
     */
-  
   given traverseForTree: Traverse[Tree] = new Traverse[Tree]:
     def traverse[G[_]: Applicative, A, B](fa: Tree[A])(f: A => G[B]): G[Tree[B]] =
       fa.traverse(f)
@@ -86,9 +85,64 @@ object LearningTraits:
       )
     println(s"all even → Some tree: ${t2.traverse(halfIfEven)}")
 
+  /** `sequence` and **`traverse(identity)`** — flipping `F[G[A]]` into `G[F[A]]`
+    *
+    * *Starting shape:* you already have **`List[Option[Int]]`** — a list where **each
+    * cell** is its own `Option`, not a plain `Int`. The “effect” (`Option`) sits
+    * **inside** the list.
+    *
+    * *What you often want:* **`Option[List[Int]]`** — **one** `Option` that says whether
+    * the **whole** list succeeded. If any element is `None`, the whole thing is `None`
+    * (for `Option` this **short-circuits**; other `G`s behave differently, e.g.
+    * `Validated` can accumulate errors).
+    *
+    * *Inside out:* that swap of wrappers is what people mean by turning the structure
+    * “inside out”: outer `List` / inner `Option` becomes outer `Option` / inner `List`.
+    *
+    * *Why `identity`:* `identity` is polymorphic (`X => X` for whatever `X` you need).
+    * Here `fa` is `List[A]` with **`A = Option[Int]`** (the element type is the whole
+    * optional value, not bare `Int`). `traverse` wants `f: A => G[B]`; picking
+    * `G = Option` and `B = Int` gives `f: Option[Int] => Option[Int]`, which is exactly
+    * **`identity`** — not `Int => Int`, which would be wrong for `List[Option[Int]]`.
+    * So `traverse` does not “map ints”; it **merges** the `Option` at each cell.
+    * `xs.traverse(identity)` means “sequence the list of effects”.
+    *
+    * *`sequence`:* Cats defines **`sequence`** (syntax) as exactly that common case:
+    * `fa.sequence` ≈ `fa.traverse(identity)` when the element type is `G[A]` for some
+    * applicative `G`.
+    *
+    * *Traverse vs map-then-sequence:* for any `traverse`, **`fa.traverse(f)`** is the
+    * same idea as **`fa.map(f).sequence`** — first attach an effect per element with
+    * `f`, then flip the whole structure. So you usually write **`traverse`** directly
+    * instead of `map` + `sequence`.
+    */
+  def noteOnSequencing(): Unit =
+    import cats.syntax.all.*
+
+    // Each position is already optional: List( layer )[ Option( layer )[ Int ] ]
+    val effectfuls: List[Option[Int]] = List(Some(1), Some(2), None)
+
+    // `identity` here is Option[Int] => Option[Int] (element type A = Option[Int]).
+    // traverse(identity): no extra mapping — just combine the Option at each index.
+    // Third element is None → whole result None (short-circuit).
+    val traversed: Option[List[Int]] = effectfuls.traverse(identity)
+    println(s"effectfuls.traverse(identity) → $traversed  // None because of the single None")
+    // Same behaviour: sequence is defined as this “merge inner effects” pattern.
+    val sequenced: Option[List[Int]] = effectfuls.sequence
+    println(s"effectfuls.sequence → $sequenced  // identical to traverse(identity) here")
+    // No None element whole sequence effects are good and traversed
+    val allPresent: List[Option[Int]] = List(Some(1), Some(2), Some(3))
+    println(s"all Some → inside-out succeeds: ${allPresent.sequence}  // Some(List(1, 2, 3))")
+
+  /**
+    * Every `traverse` is a lawful `functor`. By carefully picking the `G` to use in
+    * `traverse` we can implement `map`
+    */
+  def traversablesAreFunctors() = ???
 
 @main def traverseExamples() = 
-  import LearningTraits.treeMethodVsTypeclassExample
+  import LearningTraits.*
   treeMethodVsTypeclassExample()
+  noteOnSequencing()
 
 
