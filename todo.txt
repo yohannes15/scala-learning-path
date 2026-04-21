@@ -1,5 +1,5 @@
 Data types:
-1. Const
-2. Id
+1. Id
+2. Const
 3. Nested
 4. Validated (** Important **)
