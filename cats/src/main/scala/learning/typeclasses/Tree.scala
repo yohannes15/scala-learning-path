@@ -17,32 +17,8 @@ import cats.Applicative
  * then rebuilds `Branch`.
 */
 object tree {
-  sealed abstract class Tree2[A] extends Product with Serializable {
 
-    /** Walk the tree in applicative `F`: apply `f` at every `A`, combining all
-      * `F[B]`s into one `F[Tree[B]]` while preserving shape (`Empty` vs `Branch`).
-      */
-    /** The **implementation** lives here (`map3`, recursion). The [[LearningTraits.Traverse]]
-      * instance for `Tree` only forwards to this method so generic code can use one API.
-      */
-    def traverse[F[_]: Applicative, B](f: A => F[B]): F[Tree2[B]] = this match {
-      case Tree2.Empty() =>
-        Applicative[F].pure(Tree2.Empty()) // nothing to map; structure stays empty
-
-      case Tree2.Branch(v, l, r) =>
-        // Three independent effectful results: value, left subtree, right subtree
-        Applicative[F].map3(f(v), l.traverse(f), r.traverse(f))(Tree2.Branch(_, _, _))
-    }
-  }
-
-  object Tree2 {
-    final case class Empty[A]() extends Tree2[A]
-    final case class Branch[A](value: A, left: Tree2[A], right: Tree2[A]) extends Tree2[A]
-  }
-
-  /** Same shape and `traverse` as [[Tree]], using a Scala 3 `enum` (`Empty` is a singleton case).
-    *
-    * `+A` because `case Empty` has no type parameter: it is effectively `TreeEnum[Nothing]`.
+  /**`+A` because `case Empty` has no type parameter: it is effectively `TreeEnum[Nothing]`.
     * Covariance gives `TreeEnum[Nothing] <: TreeEnum[B]`, so `Applicative[F].pure(Empty)` in
     * `traverse` is a `F[TreeEnum[B]]`. [[Tree]] uses `Empty[A]()` instead, so `A` is fixed at
     * each site and the class stays invariant.
@@ -51,11 +27,34 @@ object tree {
     case Empty
     case Branch(value: A, left: Tree[A], right: Tree[A])
 
+    /** Walk the tree in applicative `F`: apply `f` at every `A`, combining all
+      * `F[B]`s into one `F[Tree[B]]` while preserving shape (`Empty` vs `Branch`).
+      * The **implementation** lives here (`map3`, recursion). The [[LearningTraits.Traverse]]
+      * instance for `Tree` only forwards to this method so generic code can use one API.
+      */
     def traverse[F[_]: Applicative, B](f: A => F[B]): F[Tree[B]] = this match {
       case Empty =>
+        // nothing to map; structure stays empty
         Applicative[F].pure(Empty)
 
       case Branch(v, l, r) =>
+        // Three independent effectful results: value, left subtree, right subtree
         Applicative[F].map3(f(v), l.traverse(f), r.traverse(f))(Branch(_, _, _))
     }
+
+  /************************ Scala 2 VERSION ***********************************/
+  sealed abstract class Tree2[A] extends Product with Serializable {
+    def traverse[F[_]: Applicative, B](f: A => F[B]): F[Tree2[B]] = this match {
+      case Tree2.Empty() =>
+        Applicative[F].pure(Tree2.Empty())
+      case Tree2.Branch(v, l, r) =>
+        Applicative[F].map3(f(v), l.traverse(f), r.traverse(f))(Tree2.Branch(_, _, _))
+    }
+  }
+
+  object Tree2 {
+    final case class Empty[A]() extends Tree2[A]
+    final case class Branch[A](value: A, left: Tree2[A], right: Tree2[A]) extends Tree2[A]
+  }
+  /************************ Scala 2 VERSION ***********************************/
 }
