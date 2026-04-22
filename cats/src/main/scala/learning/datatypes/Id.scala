@@ -40,6 +40,9 @@ object LearningId:
     the same, and, in fact, they can have the same implementation, meaning that 
     for Id, flatMap and coflatMap are also just function application like map for
     Id!
+
+    In short:
+        Implementations (all are “apply f to the bare value” because Id[A] is just A):
     */
     def map[A, B](fa: Id[A])(f: A => B): Id[B] = f(fa)
     def flatMap[A, B](fa: Id[A])(f: A => Id[B]): Id[B] = f(fa)
