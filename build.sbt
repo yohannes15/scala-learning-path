@@ -44,7 +44,7 @@ lazy val cats = (project in file("cats"))
   .settings(
     name := "learning-cats",
     // Lets `Nested[Option, Validated[String, *], Int]` match the Cats Nested docs notation.
-    scalacOptions += "-Ykind-projector",
+    scalacOptions += "-Xkind-projector",
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.20" % Test,
       "org.scala-lang" %% "toolkit" % "0.1.7",

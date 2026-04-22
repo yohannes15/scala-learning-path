@@ -1,5 +1,10 @@
 {
     "files.watcherExclude": {
         "**/target": true
+    },
+    "[scala]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
     }
 }
