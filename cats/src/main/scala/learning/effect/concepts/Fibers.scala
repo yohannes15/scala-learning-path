@@ -137,7 +137,6 @@ which make cancelation considerably more robust, more reliable, and much safer.
   Canceling that kind of fiber in Cats Effect is common.
 
 */
-
 object LearningFibers extends IOApp.Simple:
   def run: IO[Unit] =
     stepInAFiberIsAnEffect() >> fibersAreCancellable()
