@@ -44,6 +44,9 @@ import cats.effect.{IO, IOApp}
   * all fibers are sequences of effects). "Asynchronous" simply means "produces values or
   * errors using a callback rather than return/throw". It is an implementation detail of an
   * effect, managed by a fiber, rather than a larger fundamental pattern to be designed around.
+  * 
+  * `async_` is uncancelable during both its registration and execution. If you need an 
+  * asyncronous effect to be cancelable, consider using `async` instead.
   */
 
 object LearningAsync extends IOApp.Simple:
