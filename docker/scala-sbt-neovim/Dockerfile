@@ -4,7 +4,8 @@ FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.12.8_3.8.2
 
 USER root
 
-RUN apt-get update && apt-get install -y --no-install-recommends sudo \
+# build-essential: `cc` / gcc for nvim-treesitter when it compiles parsers to .so
+RUN apt-get update && apt-get install -y --no-install-recommends sudo build-essential \
   && echo "sbtuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/sbtuser \
   && chmod 0440 /etc/sudoers.d/sbtuser \
   && mkdir -p /workspaces && chown sbtuser:sbtuser /workspaces \
