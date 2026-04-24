@@ -1,0 +1,28 @@
+# Dev container + CLI:  docker compose up -d
+# Shell in dev:         docker compose exec dev bash
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scala-learning-dev
+    working_dir: /workspaces
+    command: sleep infinity
+    volumes:
+      # Your repo on the host (edits here = what the container sees)
+      - .:/workspaces:cached
+      # sbt global dir: boot, global plugins, launcher state — speeds up sbt after restarts
+      - sbt-sbt:/home/sbtuser/.sbt
+      # Legacy Ivy cache; some tooling still writes here — optional but cheap to persist
+      - sbt-ivy2:/home/sbtuser/.ivy2
+      # Where modern sbt keeps most downloaded dependencies (Coursier) — biggest win for repeat runs
+      - sbt-coursier:/home/sbtuser/.cache/coursier
+    ports:
+      - "8080:8080"
+    user: sbtuser
+
+volumes:
+  sbt-sbt:
+  sbt-ivy2:
+  sbt-coursier:
