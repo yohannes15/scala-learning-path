@@ -1,2 +1,0 @@
-Data types:
-1. Validated (** Important **)
