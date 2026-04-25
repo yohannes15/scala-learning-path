@@ -4,8 +4,8 @@ FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.12.8_3.8.2
 
 USER root
 
-# build-essential: `cc` / gcc for nvim-treesitter when it compiles parsers to .so
-RUN apt-get update && apt-get install -y --no-install-recommends sudo build-essential \
+# build-essential: cc/gcc for nvim-treesitter. unzip, ripgrep: checkhealth + tools that need rg/unzip.
+RUN apt-get update && apt-get install -y --no-install-recommends sudo build-essential unzip ripgrep \
   && echo "sbtuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/sbtuser \
   && chmod 0440 /etc/sudoers.d/sbtuser \
   && mkdir -p /workspaces && chown sbtuser:sbtuser /workspaces \
@@ -32,5 +32,25 @@ RUN arch="$(uname -m)" && \
   rm -f /tmp/ts.gz && \
   chmod +x /usr/local/bin/tree-sitter
 
+# Coursier + Metals (not available via Mason; needed for Neovim LSP)
+# arm64 + amd64: both launchers are published for this Coursier tag.
+ARG COURSIER_VERSION=v2.1.25-M24
 USER sbtuser
+WORKDIR /home/sbtuser
+ENV PATH="/home/sbtuser/.local/share/coursier/bin:/usr/local/bin:/usr/bin:/bin"
+RUN set -eux; \
+  arch="$(uname -m)"; \
+  case "$arch" in \
+    x86_64) cspkg=cs-x86_64-pc-linux ;; \
+    aarch64) cspkg=cs-aarch64-pc-linux ;; \
+    *) echo "unsupported arch for Coursier: $arch" >&2; exit 1 ;; \
+  esac; \
+  curl -fL "https://github.com/coursier/coursier/releases/download/${COURSIER_VERSION}/${cspkg}.gz" | gunzip -c > /tmp/cs; \
+  chmod +x /tmp/cs; \
+  /tmp/cs install metals; \
+  /tmp/cs version; \
+  command -v metals; \
+  metals -version; \
+  rm -f /tmp/cs
+
 WORKDIR /workspaces
