@@ -69,10 +69,6 @@ object LearningApplicativeError {
     * specific error type depending on what `F[]` represents. If F[] is an
     * Either, then `ae.raiseError` will return `Left`. If F[] represents a
     * Validation, then it will return `Invalid`
-    * @param x
-    * @param y
-    * @param ae
-    * @return
     */
   def attemptDivideApplicativeError[F[_]](x: Int, y: Int)(using
       ae: ApplicativeError[F, String]
