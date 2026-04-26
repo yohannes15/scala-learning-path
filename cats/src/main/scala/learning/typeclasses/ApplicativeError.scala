@@ -79,9 +79,25 @@ object LearningApplicativeError {
   ): F[Int] = {
     if (y == 0) ae.raiseError("divisor is zero error") else ae.pure(x / y)
   }
+
+  /** All methods of Applicative are available to use (ap, mapN ...). In below
+    * example we use ap and map2.
+    */
+  def attemptDivideApplicativeErrorWithMap2[F[_]](x: Int, y: Int)(using
+      ae: ApplicativeError[F, String]
+  ): F[Int] = {
+    if (y == 0) ae.raiseError("divisor is error")
+    else {
+      val fa = ae.pure(x)
+      val fb = ae.pure(y)
+      ae.map2(fa, fb)(_ / _)
+    }
+  }
 }
 
 @main def applicativeErrorExamples() =
   import LearningApplicativeError.*
   val g: ErrorOr[Int] = attemptDivideApplicativeError[ErrorOr](30, 10)
+  val g2: ErrorOr[Int] = attemptDivideApplicativeErrorWithMap2[ErrorOr](300, 10)
   println(s"ApplicativeError ErrorOr Result: $g")
+  println(s"ApplicativeError ErrorOr Result: $g2")
