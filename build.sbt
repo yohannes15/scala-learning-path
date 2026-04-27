@@ -45,6 +45,8 @@ lazy val cats = (project in file("cats"))
     name := "learning-cats",
     // starts a separate JVM
     Compile / run / fork := true,
+    // Needed so stdin is wired when CopyFile prompts to overwrite (`StdIn.readLine`).
+    Compile / run / connectInput := true,
     // Default fork cwd is this subproject (`cats/`). Paths like `cats/src/...` then become
     // `cats/cats/...` and break. Use the build root (repo root / `/workspaces` in devcontainer).
     Compile / run / forkOptions := ForkOptions()
@@ -77,5 +79,9 @@ lazy val cats = (project in file("cats"))
 // Try `learning.effect.tutorials.CopyFile` with bundled tutorial files (paths from build root).
 addCommandAlias(
   "copyFileDemo",
-  "cats/runMain learning.effect.tutorials.CopyFile cats/src/main/scala/learning/effect/tutorials/origin.txt cats/src/main/scala/learning/effect/tutorials/dest.txt"
+  "cats/runMain learning.effect.tutorials.CopyFile cats/src/main/scala/learning/effect/tutorials/origin.txt cats/src/main/scala/learning/effect/tutorials/dest.txt --yes"
+)
+addCommandAlias(
+  "copyFilePolyDemo",
+  "cats/runMain learning.effect.tutorials.CopyFilePoly cats/src/main/scala/learning/effect/tutorials/origin.txt cats/src/main/scala/learning/effect/tutorials/dest.txt --yes"
 )

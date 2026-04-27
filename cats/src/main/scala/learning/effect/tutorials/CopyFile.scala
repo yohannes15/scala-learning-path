@@ -4,9 +4,11 @@ import java.io.{
   File, FileInputStream, FileOutputStream, InputStream, OutputStream
 }
 import cats.syntax.all.*
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{IO, Resource}
 import cats.effect.IOApp
 import cats.effect.ExitCode
+
+import scala.concurrent.duration.*
 
 /** Copying files - basic concepts, resource handling and cancelation
   * -------------------------------------------------------------------- Our
@@ -41,26 +43,83 @@ import cats.effect.ExitCode
   * can look like this:
   *
   * {{{
-  *    sbt 'cats/runMain learning.effect.tutorials.CopyFile cats/src/main/scala/learning/effect/tutorials/origin.txt
-  *    cats/src/main/scala/learning/effect/tutorials/dest.txt'
+  *    sbt 'cats/runMain learning.effect.tutorials.CopyFile cats/.../origin.txt cats/.../dest.txt --yes'
   * }}}
+  *
+  * Pass `--yes` / `-y` / `--overwrite` when the destination may already exist but
+  * you have no TTY (e.g. `sbt copyFileDemo` with a forked JVM: stdin often does
+  * not reach `readLine` reliably even with `connectInput`).
+  *
+  * [[CopyFilePoly]] is a second `IOApp` with the same flags and prompts; it runs the
+  * copy through `Async`/`Resource` only (see that object for the polymorphic pipeline).
   */
 object CopyFile extends IOApp:
+
+  private def pathArgs(args: List[String]): List[String] =
+    args.filterNot(a => a.startsWith("-"))
+
+  private def overwriteFlag(args: List[String]): Boolean =
+    args.exists {
+      case "-y" | "--yes" | "--overwrite" => true
+      case _                              => false
+    }
+
+  /** Pause between buffered read/write iterations so you can Ctrl-C during copy
+    * and see [[inputStream]] / [[outputStream]] release logs. Set to
+    * `Duration.Zero` (or import `*` and use `0.seconds`) for normal/fast
+    * copies.
+    */
+  private val transferSleepBetweenChunks: FiniteDuration = 2.seconds
   override def run(args: List[String]): IO[ExitCode] =
     for
-      // Heed how run args are verified. As IO implements MonadError we can
-      // at any moment call to IO.raiseWhen or IO.raiseError to interrupt a
-      // sequence of IO operations.
-      _ <- IO.raiseWhen(
-        args.length < 2
-      )(new IllegalArgumentException("Need origin and destination files"))
-      orig = new File(args(0))
-      dest = new File(args(1))
-      count <- copyPoly[IO](orig, dest)
-      _ <- IO.println(
-        s"$count bytes copied from ${orig.getPath} to ${dest.getPath}"
+      // Flags (`--yes`, ...) are optional; positional args are origin then dest.
+      paths = pathArgs(args)
+      forceOverwrite = overwriteFlag(args)
+      _ <- IO.raiseWhen(paths.length != 2)(
+        new IllegalArgumentException(
+          "Need exactly two paths: origin and destination (optional: --yes|-y|--overwrite)."
+        )
       )
-    yield ExitCode.Success
+      orig = new File(paths(0))
+      dest = new File(paths(1))
+      _ <- IO.raiseWhen(
+        orig == dest
+      )(new IllegalArgumentException(
+        "origin and destination paths can't be identical"
+      ))
+      _ <- IO.raiseWhen(
+        !orig.exists()
+      )(new IllegalArgumentException("origin doesn't exist"))
+      // File API hits the FS; keep the check in IO for consistent effect boundaries.
+      destExists <- IO.blocking(dest.exists())
+      overwrite <-
+        if !destExists then IO.pure(true)
+        else if forceOverwrite then
+          IO.println(s"Destination exists — overwriting (--yes): ${dest.getPath}") *>
+            IO.pure(true)
+        else
+          cats.effect.std.Console[IO].println(
+            "Dest path already exists. Type yes/no (or y/n): overwrite?"
+          ) >>
+            IO.blocking {
+              Option(scala.io.StdIn.readLine())
+                .map(_.trim.toLowerCase)
+                .getOrElse("") match
+                case "y" | "yes" => true
+                case _           => false
+            }
+      count <-
+        if overwrite then copy(orig, dest) else IO.pure(0L)
+      _ <-
+        if overwrite then
+          IO.println(
+            s"$count bytes copied from ${orig.getPath} to ${dest.getPath}"
+          )
+        else
+          IO.println(
+            s"Copy skipped; did not overwrite existing file ${dest.getPath}."
+          )
+    yield if overwrite then ExitCode.Success else ExitCode(1)
 
   /** Opening a stream is considered a side-effectful action, so we have to
     * encapsulate those actions on their own IO instances. We can just embed the
@@ -71,13 +130,15 @@ object CopyFile extends IOApp:
     * We will use a Resource to orderely create/use/release resources.
     */
   def inputStream(f: File): Resource[IO, FileInputStream] =
-    Resource.make(IO.blocking(new FileInputStream(f))) {
-      inStream => IO.blocking(inStream.close()).handleErrorWith(_ => IO.unit)
+    Resource.make(IO.blocking(new FileInputStream(f))) { inStream =>
+      IO.println(s"[release] closing input stream (${f.getPath})") >>
+        IO.blocking(inStream.close()).handleErrorWith(_ => IO.unit)
     }
 
   def outputStream(f: File): Resource[IO, FileOutputStream] =
-    Resource.make(IO.blocking(new FileOutputStream(f))) {
-      outStream => IO.blocking(outStream.close()).handleErrorWith(_ => IO.unit)
+    Resource.make(IO.blocking(new FileOutputStream(f))) { outStream =>
+      IO.println(s"[release] closing output stream (${f.getPath})") >>
+        IO.blocking(outStream.close()).handleErrorWith(_ => IO.unit)
     }
 
   /** We want to ensure that streams are closed once we are done using them, no
@@ -125,7 +186,7 @@ object CopyFile extends IOApp:
     val streamResources = inputOutputStreams(origin, destination)
     streamResources.use {
       // We can use transferPoly or transfer (showcasing using IO vs Sync/Async)
-      case (in, out) => transferPoly(in, out, new Array[Byte](1024 * 10), 0)
+      case (in, out) => transfer(in, out, new Array[Byte](1024 * 10), 0)
     }
 
   /** If you are familiar with cats-effect's `bracket` you may wonder why we use
@@ -207,127 +268,18 @@ object CopyFile extends IOApp:
         (
           if (amount > -1) then
             (
-              IO.blocking(destination.write(buffer, 0, amount)) >>
+              IO.sleep(transferSleepBetweenChunks) >>
+                IO.blocking(destination.write(buffer, 0, amount)) >>
                 transfer(origin, destination, buffer, acc + amount)
-          )
+            )
           // end of read stream reached (by java.io.InputStream contract)
           else IO.pure(acc)
         )
     yield count
 
-  /** Cancelation
-    *
-    * IO instances execution can be canceled! Cancelation is a powerful but but
-    * non-trivial CE feature. It shouldn't be ignored. In CE, some IO instances
-    * can be canceled (e.g. by other IO instances running concurrently) meaning
-    * that their evaluation will be aborted. If programmer is careful, an
-    * alternative IO task will be run under cancelation, for example to deal
-    * with potential cleaning up activities.
-    *
-    * Resource makes dealing with cancelation an easy task. If the IO inside a
-    * Resource.use is canceled, the release section of that resource is run. In
-    * our example this means the input/output streams will be properly closed.
-    * Also, CE does not cancel code inside `IO.blocking` instances. In the case
-    * of our transfer function this means the execution would be interrupted
-    * only between two calls to IO.blocking. If we want the execution of an IO
-    * instance to be interrupted when canceled, without waiting for it to
-    * finish, we must instantiate it using `IO.interruptible`!
-    *
-    * It can be argued that using IO(java.nio.file.Files.copy(...)) would get an
-    * IO with the same characterstics of purity as our function, but there is a
-    * difference in that our IO is safely cancelable. So the user can stop the
-    * running code at any time and our code will deal with safe resource release
-    * (streams closing) even under circumstances (like Ctrl-c). The same will
-    * apply if the copy function is run from other modules that require its
-    * functionality. If the IO returned by this function is cancelled while
-    * being run, resources will be properly released.
-    *
-    * Polymorphic cats-effect code & Sync/Async
-    * ------------------------------------------------------------------------
-    * There is an important characterstic of IO that we should be aware of. IO
-    * is able to suspend side-effects async thanks to the existence of an
-    * instance of Async[IO]. Because Async extends Sync, IO can also suspend
-    * side-effects synchronously. On top of that Async extends typeclasses such
-    * as MonadCancel, Concurrent or Temporal, which bring the possibility to
-    * cancel an IO instance, to run serveral IO instances concurrently, to
-    * timeout an execution, to force the execution to wait (sleep), etc ...
-    *
-    * Could we have coded our copy file functions in terms of some F[_]: Sync
-    * and F[_]: Async instead of IO? Yes! below is an example of how we would
-    * define a polymorphic version of our transfer function with this apporach,
-    * just by replacing any use of IO by calls to the delay and pure methods the
-    * Sync[F] functions.
-    *
-    * Only in our main function we could set IO as the final F for our program.
-    * To do so, of course, a Sync[IO] instance must be in scope, but that
-    * instance is brought transparently by IOApp, so we don't need to be
-    * concerned about it (falling to IO only in the run method is common).
-    * Polymorphic code is less restrictive, as functions are not tied to IO but
-    * are applicable to any F[] as long as there is an instance of the type
-    * class required (Sync, Async ...) in scope. The type class to use depends
-    * on requirements of the code
-    */
-  def transferPoly[F[_]: Sync](
-      origin: InputStream,
-      destination: OutputStream,
-      buffer: Array[Byte],
-      acc: Long
-  ): F[Long] =
-    for
-      amount <- Sync[F].blocking(origin.read(buffer, 0, buffer.length))
-      count <-
-        (
-          if (amount > -1) then
-            Sync[F].blocking(destination.write(buffer, 0, amount)) >>
-              transferPoly(origin, destination, buffer, acc + amount)
-          // end of stream reached
-          else Sync[F].pure(acc)
-        )
-    yield count
-
-  // Implementing the polymorphic versions of copy functions below
-  def inputStreamPoly[F[_]: Sync](f: File): Resource[F, FileInputStream] =
-    Resource.make(Sync[F].blocking(new FileInputStream(f))) {
-      inStream =>
-        Sync[F].blocking(inStream.close()).handleErrorWith(_ => Sync[F].unit)
-    }
-  def outputStreamPoly[F[_]: Sync](f: File): Resource[F, FileOutputStream] =
-    Resource.make(Sync[F].blocking(new FileOutputStream(f))) {
-      outStream =>
-        Sync[F].blocking(outStream.close()).handleErrorWith(_ => Sync[F].unit)
-    }
-  def inputOutputStreamsPoly[F[_]: Sync](
-      in: File,
-      out: File
-  ): Resource[F, (InputStream, OutputStream)] =
-    for
-      inStream <- inputStreamPoly(in)
-      outStream <- outputStreamPoly(out)
-    yield (inStream, outStream)
-
-  def copyPoly[F[_]: Sync](origin: File, destination: File): F[Long] =
-    inputOutputStreamsPoly(origin, destination).use {
-      case (in, out) => transferPoly(in, out, new Array[Byte](1024 * 10), 0L)
-    }
-
-/** TODO: Exercises: improving our small IO program
+/** TODO: Pending exercise: recursive folder copy (cancelable).
   *
-  * To finalize we propose you some exercises that will help you to keep
-  * improving your IO-kungfu:
-  *
-  *   1. Modify the IOApp so it shows an error and abort the execution if the
-  *      origin and destination files are the same, the origin file cannot be
-  *      open for reading, or the destination file cannot be opened for writing.
-  *      Also, if the destination file already exists, the program should ask
-  *      for confirmation before overwriting that file.
-  *   2. Test safe cancelation, checking that the streams are indeed being
-  *      properly closed. You can do that just by interrupting the program
-  *      execution pressing Ctrl-c. To make sure you have the time to interrupt
-  *      the program, introduce a delay of a few seconds in the transfer
-  *      function (see IO.sleep). And to ensure that the release functionality
-  *      in the Resources is run you can add some log message there (see
-  *      IO.println).
-  *   3. Create a new program able to copy folders. If the origin folder has
-  *      subfolders, then their contents must be recursively copied too. Of
-  *      course the copying must be safely cancelable at any moment.
+  * Create a program that copies folders; if the origin has nested folders, copy
+  * recursively. Cancellation should remain safe at any point (`Resource`, sleep
+  * between chunks vs `IO.sleep` tradeoffs apply as with this tutorial).
   */
