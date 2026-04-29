@@ -313,6 +313,45 @@ def collectionMethodsreduceExample() =
   val resProduct = a.reduce(_ * _) // 24
   println(s"$resProduct is the reduce result for $a using List.reduce(_ * _)")
 
+/** ************************************************************************
+  * `groupBy`, `view`, and `mapValues`
+  *
+  * - `groupBy`: Groups a collection into a Map of "buckets" based on a function.
+  * - `view`: Creates a lazy view of the collection. Operations are not evaluated 
+  *   immediately, avoiding unnecessary intermediate collections.
+  * - `mapValues`: A specialized map for Maps that only transforms the values, 
+  *   leaving keys untouched. In Scala 3, it is most efficient when used on a `view`.
+  * ----------------------------------------------------------------------------
+  */
+def collectionMethodsGroupingExample() =
+  val list = List("apple", "apricot", "banana", "blueberry", "cherry")
+  
+  // Group by the first letter
+  val grouped: Map[Char, List[String]] = list.groupBy(_.head)
+  // Map(a -> List(apple, apricot), b -> List(banana, blueberry), c -> List(cherry))
+
+  // Transform the values (the lists) into their sizes
+  // We use .view to avoid creating an intermediate Map before calling .toMap
+  val counts: Map[Char, Int] = grouped.view.mapValues(_.size).toMap
+  // Map(a -> 2, b -> 2, c -> 1)
+
+/** ************************************************************************
+  * `count`
+  *
+  * - Returns the number of elements in the collection that satisfy a predicate.
+  * - It's a more concise way of doing `.filter(p).size`.
+  * ----------------------------------------------------------------------------
+  */
+def collectionMethodsCountExample() =
+  val numbers = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+  
+  // Count how many numbers are even
+  val evenCount = numbers.count(_ % 2 == 0) // 5
+  
+  val fruit = List("apple", "banana", "cherry", "date")
+  // Count how many fruits have more than 5 characters
+  val longFruitCount = fruit.count(_.length > 5) // 2 (banana, cherry)
+
 /** *************************************************************************
   * SUMMARY
   *
