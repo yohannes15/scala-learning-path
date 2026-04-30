@@ -4,10 +4,9 @@ import cats.effect.IO
 import cats.effect.IOApp
 import scala.concurrent.duration._
 
-trait Fiber[F[_], A] {
+trait Fiber[F[_], A]:
   def cancel: F[Unit]
   def join: F[A]
-}
 
 /** `Fibers`
   * -------------------------------------------------------------------------------------
@@ -84,10 +83,11 @@ trait Fiber[F[_], A] {
   * child (which may be `Canceled`) and may continue executing after the child
   * has terminated.
   *
-  * Cancelation ------------------------ By default, fibers are cancelable at
-  * all points during their execution. This means that unneeded calculations can
-  * be promptly terminated and their resources gracefully released as early as
-  * possible within an application.
+  * Cancelation
+  *
+  * By default, fibers are cancelable at all points during their execution. This
+  * means that unneeded calculations can be promptly terminated and their
+  * resources gracefully released as early as possible within an application.
   *
   * In practice, fiber cancelation most often happens in response to one of two
   * situations: timeouts and concurrent errors. i.e. fibersAreCancellable()
@@ -97,21 +97,23 @@ trait Fiber[F[_], A] {
   * differences which make cancelation considerably more robust, more reliable,
   * and much safer.
   *
-  * 1) Fibers are cooperative: ------------------------ When one fiber calls
-  * `cancel` on another fiber, it is effectively a request to the target fiber.
-  * If target fiber is unable to cancel at that moment for any reason, the
-  * canceling fiber async waits for cancelation to become possible. Once
-  * cancelation starts, the target fiber will run all of its finalizers (usually
-  * to release resources) before yielding control back to the canceler.
-  * `interrupt`, on the other hand, always returns immediately even if target
-  * Thread has not actually interrupted.
+  * 1) Fibers are cooperative:
+  *
+  * When one fiber calls `cancel` on another fiber, it is effectively a request
+  * to the target fiber. If target fiber is unable to cancel at that moment for
+  * any reason, the canceling fiber async waits for cancelation to become
+  * possible. Once cancelation starts, the target fiber will run all of its
+  * finalizers (usually to release resources) before yielding control back to
+  * the canceler. `interrupt`, on the other hand, always returns immediately
+  * even if target Thread has not actually interrupted.
   *
   * 2) Fiber cancelation can be suppressed within scoped regions
-  * ----------------------------------------------------------- If a fiber is
-  * performing a series of actions which must be executed atomically (either all
-  * actions execute, or none of them do), it can use the `IO.uncancelable`
-  * method to mask the cancelation signal within the scope, ensuring that
-  * cancelation is deferred until the fiber has completed its critical section.
+  *
+  * If a fiber is performing a series of actions which must be executed
+  * atomically (either all actions execute, or none of them do), it can use the
+  * `IO.uncancelable` method to mask the cancelation signal within the scope,
+  * ensuring that cancelation is deferred until the fiber has completed its
+  * critical section.
   *
   * This is commonly used in conjunction with compound resource acquisition,
   * where a scarce resource might leak if the fiber were to be canceled "in the
@@ -119,13 +121,13 @@ trait Fiber[F[_], A] {
   * suppressed.
   *
   * 3) Granularity of cancelation within target fiber!
-  * ----------------------------------------------------------- Finally, due to
-  * the fact that the fiber model offers much more control and tighter
-  * guarantees around cancelation, it is possible and safe to dramatically
-  * increase the granularity of cancelation within the target fiber. In
-  * particular, every step of a fiber contains a cancelation check. This is
-  * similar to what `interrupt` would do if the JVM checked the interruption
-  * flag on every ;
+  *
+  * Finally, due to the fact that the fiber model offers much more control and
+  * tighter guarantees around cancelation, it is possible and safe to
+  * dramatically increase the granularity of cancelation within the target
+  * fiber. In particular, every step of a fiber contains a cancelation check.
+  * This is similar to what `interrupt` would do if the JVM checked the
+  * interruption flag on every ;
   *
   * This is exactly how the loop fiber in the `fibersAreCancellable` example
   * below is canceled despite the fact that the loop never calls a blocking
@@ -136,6 +138,61 @@ trait Fiber[F[_], A] {
   * this distinction is.
   *
   * Canceling that kind of fiber in Cats Effect is common.
+  *
+  * A Fiber carries an `F` action to execute (typically an `IO` instance).
+  * Fibers are like light threads, meaning they can be used in a similar way to
+  * threads to create concurrent code. However they are NOT threads! Spawning
+  * new fibers does not guarantee that the action described in the `F`
+  * associated to it will be run if there is a shortage of threads. Internally,
+  * Cats-Effect uses thread pools to run fibers when running on the JVM, so if
+  * there is no thread available in the pool then the fiber execution will
+  * 'wait' until some thread is free again.
+  *
+  * On the other hand when the execution of some fiber is blocked e.g. because
+  * it must wait for a semaphore to be released, the thread running the fiber is
+  * recycled by cats-effect so it is available for other fibers. When the fiber
+  * can be resumed cats-effect will look for some free thread to continue the
+  * execution. The term "fiber blocking" is used sometimes to denote that
+  * blocking the fiber does not involve halting any thread. CE also recycles
+  * threads of finished and canceled fibers. But, keep in mind that, in
+  * contrast, if the fiber is truly blocked by some external action like waiting
+  * for some input from a TCP socket, then CE has no way to recover back that
+  * thread until the action finishes. Such calls should be warpped by
+  * `IO.blocking` to signal that the wrapped code will block the thread.
+  * Cats-effect uses that info as a hint to optimize `IO` scheduling.
+  *
+  * Another difference with threads is that fibers are very cheap entities. We
+  * can spawn millions of them at ease without impacting the performance.
+  *
+  * A worthy note is that you do not have to explicitly shut down fibers. If you
+  * spawn a fiber and it finishes actively running its IO it will get cleaned up
+  * by the garbage collector unless there is some other active memory reference
+  * to it. So basically you can treat a fiber as any other regular object,
+  * except that when the fiber is running (present tense), the cats-effect
+  * runtime itself keeps the fiber alive.
+  *
+  * This has some interesting implications as well. Like if you create an
+  * IO.async node and register the callback with something, and you're in a
+  * fiber which has no strong object references anywhere else (i.e. you did some
+  * sort of fire-and-forget thing), then the callback itself is the only strong
+  * reference to the fiber. Meaning if the registration fails or the system you
+  * registered with throws it away, the fiber will just gracefully disappear.
+  *
+  * As with threads, often you will need to coordinate the work of concurrent
+  * fibers. Writing concurrent code is a difficult exercise, but cats-effect
+  * implements some concurrency primitives such as Deferred, Ref, Semaphore...
+  * that will help you in that task. Way more detailed info about concurrency in
+  * cats-effect can be found in this other tutorial 'Concurrency in Scala with
+  * Cats-Effect'.
+  *
+  * Extra Refernces:
+  *
+  * 1) Concurrency in Scala with Cats-Effect:
+  * https://github.com/slouc/concurrency-in-scala-with-ce
+  *
+  * 2) Deferred/Ref/Semphaore in https://typelevel.org/cats-effect/docs/std/ref
+  * https://typelevel.org/cats-effect/docs/std/deferred
+  * https://typelevel.org/cats-effect/docs/std/semaphore
   */
 object LearningFibers extends IOApp.Simple:
   def run: IO[Unit] =
@@ -159,10 +216,11 @@ object LearningFibers extends IOApp.Simple:
     // val fiber: IO[Fiber[IO, Throwable, Unit]] = res.start
 
     /* quite common to use for-comprehensions to express the same thing: */
-    val res2: IO[Unit] = for
-      _ <- IO.println("Hello")
-      _ <- IO.println("Daisy")
-    yield ()
+    val res2: IO[Unit] =
+      for
+        _ <- IO.println("Hello")
+        _ <- IO.println("Daisy")
+      yield ()
 
     /*
     pattern where we put together two effects, ignoring the result of the
