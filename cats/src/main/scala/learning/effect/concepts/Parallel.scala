@@ -71,4 +71,25 @@ object LearningParallel extends IOApp.Simple:
               s"  parTupled:   ${dPar.toMillis} ms  (~350 ms on JVM if both sleeps overlap—not guaranteed on a busy or single-thread host)"
             )
           }
-      }
+      } >> parTraverseExample()
+
+  /** parTraverse and parTraverseN
+    * --------------------------------------------------------------------------------------
+    * While `parTupled` is for a fixed number of effects, `parTraverse` is for
+    * collections.
+    *
+    * parTraverse: Runs all effects in the collection in parallel.
+    * parTraverseN(n): Runs effects in parallel, but limits the concurrency to
+    * `n`.
+    *
+    * CRITICAL: Using parTraverseN is usually preferred in production to avoid
+    * "File Descriptor" or "Memory" exhaustion when processing thousands of
+    * items.
+    */
+  def parTraverseExample(): IO[Unit] =
+    val items = List(1, 2, 3, 4, 5)
+    def process(i: Int) = IO.sleep(100.millis) >> IO.println(s"Processed $i")
+
+    IO.println("\n--- parTraverseN(2) Example ---") >>
+      items.parTraverseN(2)(process).void >>
+      IO.println("Notice how they are processed in batches of 2.")

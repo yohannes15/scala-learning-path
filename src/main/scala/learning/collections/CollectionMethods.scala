@@ -352,6 +352,33 @@ def collectionMethodsCountExample() =
   // Count how many fruits have more than 5 characters
   val longFruitCount = fruit.count(_.length > 5) // 2 (banana, cherry)
 
+/** ************************************************************************
+  * `foldLeft`
+  *
+  * - The most powerful collection method. It "folds" a collection into a single
+  *   result.
+  * - It takes an initial value (the accumulator) and a function that combines
+  *   the accumulator with each element.
+  * - Extremely useful for "streaming" or "one-pass" processing where you need
+  *   to build complex results (like Tuples) without loading everything into
+  *   memory first.
+  * ----------------------------------------------------------------------------
+  */
+def collectionMethodsFoldExample() =
+  val numbers = List(1, 2, 3, 4, 5)
+
+  // Summing numbers: initial value 0
+  val sum = numbers.foldLeft(0)((acc, n) => acc + n) // 15
+
+  // Partitioning into a Tuple: (Evens, Odds)
+  // This is how you "partition" when the collection doesn't have .partitionMap
+  val (evens, odds) = numbers.foldLeft((List.empty[Int], List.empty[Int])) {
+    case ((es, os), n) =>
+      if (n % 2 == 0) (n :: es, os)
+      else (es, n :: os)
+  }
+  // Result: (List(4, 2), List(5, 3, 1)) -- Note: Elements are reversed!
+
 /** *************************************************************************
   * SUMMARY
   *
