@@ -242,7 +242,9 @@ object InefficientAtomicSleepProducerConsumer extends IOApp:
       res <- (consumer(queueR), producer(queueR, 0))
         .parMapN((_, _) =>
           ExitCode.Success
-        ) // Run producer and consumer in parallel until done (likely by user cancelling with CTRL-C)
+        )
+        // Run producer and consumer in parallel until done (likely by user
+        // cancelling with CTRL-C)
         .handleErrorWith { t =>
           Console[IO].errorln(
             s"Error caught: ${t.getMessage}"
@@ -267,4 +269,106 @@ object InefficientAtomicSleepProducerConsumer extends IOApp:
   *
   * Also we will improve our code to handle several producers/consumers in
   * parallel.
+  *
+  * Ok so knowing this we have to keep track of different things:
+  *
+  *   - Queue[Int] -> queue of produced but not yet consumed elements)
+  *   - Queue[Deferred[F, A]] -> new queue of Deferred instances (created
+  *     because consumers found an empty queue) that are waiting for elements to
+  *     be available
+  *
+  * We will hold these 2 in a new type called `State`.
+  *
+  * Both producer and consumer will access the same shared state instance, which
+  * will be carried and safely modified by an instance of `Ref`. Consumer will
+  * work as follows:
+  *   - If `Queue` is not empty, it will extract and return its head. The new
+  *     state will keep the tail of the queue, no deferred hence no change on
+  *     `takers`
+  *   - If `Queue` is empty it will use a new `Deferred` instance as a new
+  *     `taker`, add it to the `takers` queue, and *'block' the caller by
+  *     invoking `taker.get`
+  *
+  * Multiple producer - consumer system using an unbounded concurrent queue
   */
+object ProducerConsumer extends IOApp:
+  final case class State[F[_], A](
+      queue: Queue[A],
+      takers: Queue[Deferred[F, A]]
+  )
+
+  object State:
+    def empty[F[_], A]: State[F, A] = State(Queue.empty, Queue.empty)
+
+  def consumer[F[_]: Async: Console](
+      id: Int, // only used to identify the consumer in logs (multiple consumers now)
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+    val take: F[Int] =
+      Deferred[F, Int].flatMap { taker =>
+        stateR.modify {
+          case State(queue, takers) if queue.nonEmpty =>
+            // Got element in queue
+            val (i, rest) = queue.dequeue
+            (State(rest, takers), Async[F].pure(i))
+          case State(queue, takers) =>
+            // No element in queue, must block caller until some is available
+            (State(queue, takers.enqueue(taker)), taker.get)
+        }.flatten
+      }
+
+    for
+      i <- take
+      _ <- Async[F].whenA(i % 10000 == 0)(
+        Console[F].println(s"Consumer $id has reached $i items")
+      )
+      - <- consumer(id, stateR)
+    yield ()
+
+  def producer[F[_]: Async: Console](
+      id: Int, // only used to identify the producer in logs (multiple producers now)
+      counterR: Ref[F, Int],
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+
+    def offer(i: Int): F[Unit] =
+      stateR.modify {
+        case State(queue, takers) if takers.nonEmpty =>
+          val (taker, rest) = takers.dequeue
+          (State(queue, rest), taker.complete(i).void)
+        case State(queue, takers) =>
+          State(queue.enqueue(i), takers) -> Async[F].unit
+      }.flatten
+
+    for
+      i <- counterR.getAndUpdate(_ + 1)
+      _ <- offer(i)
+      _ <- Async[F].whenA(i % 100000 == 0)(
+        Console[F].println(s"Producer $id has reached $i items")
+      )
+      _ <- Async[F].sleep(1.microsecond) // To prevent overwhelming consumers
+      _ <- producer(id, counterR, stateR)
+    yield ()
+
+  /** Producers and consumers are created as two List[IO[...]]. All of them are
+    * started in their own fiber by the call to `parSequence`, which will wait
+    * for all of them to finish and then return the value. Runs forever until
+    * CTRL-C
+    */
+  def run(args: List[String]): IO[ExitCode] =
+    for
+      stateR <- Ref.of[IO, State[IO, Int]](State.empty[IO, Int])
+      counterR <- Ref.of[IO, Int](1)
+      // 10 producers and 10 consumers
+      producers = List.range(1, 11).map(producer(_, counterR, stateR))
+      consumers = List.range(1, 11).map(consumer(_, stateR))
+      res <- (producers ++ consumers)
+        .parSequence.as(ExitCode.Success)
+        .handleErrorWith(t =>
+          Console[IO].errorln(
+            s"Error caught: ${t.getMessage}"
+          ).as(ExitCode.Error)
+        )
+    yield res
+
+/** Producer Consumer with bounded queue */
