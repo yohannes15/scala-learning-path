@@ -1,6 +1,7 @@
 import cats.effect.*
 import cats.effect.std.Console
 import cats.syntax.all.*
+import cats.effect.syntax.all.*
 import scala.collection.immutable.Queue
 import scala.concurrent.duration.DurationInt
 import cats.effect.std.AtomicCell
@@ -106,7 +107,6 @@ object InefficientProducerConsumer extends IOApp:
       counter: Int
   ): F[Unit] =
     for
-      // prints some log msg every 10000 items, so we know producer is 'alive'
       // similar to if(cond) then Console... else Sync[F].unit but better
       // Console[_] tc brings capacity to print and read strings (IO.println
       // just invokes Console[IO].println under the hood)
@@ -371,4 +371,334 @@ object ProducerConsumer extends IOApp:
         )
     yield res
 
-/** Producer Consumer with bounded queue */
+/** Producer Consumer with bounded queue
+  *
+  * Having a bounded queue implies that producers, when the queue is full, will
+  * wait (be fiber blocked) until there is some empty bucket available to be
+  * filled. So an implementation needs to be keep track of these waiting
+  * producers. To do so we will add a new queue `offerers` that will be added to
+  * the `State` alongside `takers`. For each waiting producer the `offerers`
+  * queue will keep a `Deferred[F, Unit]` that will be used to block the
+  * producer until the element it offers can be added to `queue` or directly
+  * passed to some consumer (`taker`). Alongside the Deferred instance we need
+  * to keep as well the actual element offered by the producer in the `offerers`
+  * queue. Thus State becomes below.
+  */
+object ProducerConsumerBounded extends IOApp:
+
+  final case class State[F[_], A](
+      queue: Queue[A],
+      capacity: Int,
+      takers: Queue[Deferred[F, A]],
+      offerers: Queue[(A, Deferred[F, Unit])]
+  )
+
+  object State:
+    def empty[F[_], A](capacity: Int): State[F, A] =
+      State(Queue.empty, capacity, Queue.empty, Queue.empty)
+
+  /** Both consumer and producer have to be modified to handle this new queue
+    * `offerers`. A consumer can find 4 scenarios, depending on if `queue` and
+    * `offerers` are each one empty or not.
+    *
+    *   1. `queue` is not empty:
+    *      i. If `offerers` is empty then it will extract and return `queue`
+    *         head
+    *      ii. If `offerers` is not empty (some producer is waiting) then things
+    *          are more complicated. The `queue` head will be returned to the
+    *          consumer. Now we have a free bucket available in `queue`. So the
+    *          first waiting offerer can use that bucket to add element it
+    *          offers. That element is added to `queue`, and the `Deferred`
+    *          instance will be completed so the producer is released
+    *          (unblocked)
+    *   2. `queue` is empty:
+    *      i. If `offerers` is empty then there is nothing we can give to the
+    *         caller, so a new `taker` is created and added to `takers` while
+    *         caller is blocked with `taker.get`
+    *      ii. If `offerers` is not empty then the first offerer in queue is
+    *          extracted, its `Deferred` instance released while the offered
+    *          element is returned to the caller.
+    */
+  def consumer[F[_]: Async: Console](
+      id: Int,
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+    val take: F[Int] =
+      Deferred[F, Int].flatMap { taker =>
+        stateR.modify {
+          case State(queue, capacity, takers, offerers)
+              if queue.nonEmpty && offerers.isEmpty =>
+            val (i, rest) = queue.dequeue
+            State(rest, capacity, takers, offerers) -> Async[F].pure(i)
+          case State(queue, capacity, takers, offerers) if queue.nonEmpty =>
+            val (i, rest) = queue.dequeue
+            val ((move, release), tail) = offerers.dequeue
+            State(rest.enqueue(move), capacity, takers, tail) ->
+              release.complete(()).as(i)
+          case State(queue, capacity, takers, offerers) if offerers.nonEmpty =>
+            val ((i, release), rest) = offerers.dequeue
+            State(queue, capacity, takers, rest) -> release.complete(()).as(i)
+          case State(queue, capacity, takers, offerers) =>
+            State(queue, capacity, takers.enqueue(taker), offerers) -> taker.get
+        }.flatten
+      }
+
+    for
+      i <- take
+      _ <- Async[F].whenA(i % 100000 == 0)(
+        Console[F].println(s"Consumer $id has reached $i items")
+      )
+      _ <- consumer(id, stateR)
+    yield ()
+
+  /** Producer functionality is a bit easier:
+    *
+    *   1. If there is any waiting `taker` then the producer element will be
+    *      passed to it, releasing the blocked fiber
+    *   2. If there is no waiting `taker` but `queue` is not full, then the
+    *      offered element will be enqueued there.
+    *   3. If there is no waiting `taker` and `queue` is already full then a new
+    *      `offerer` is created, blocking the producer fiber on the `.get`
+    *      method of the `Deffered` instance
+    *
+    * We have removed the Async[F].sleep call that we used to slow down
+    * producers because we do not need it any more. Even if producers could run
+    * faster than consumers they have to wait when the queue is full for
+    * consumers to extract data from the queue. So at the end of the day they
+    * will run at the same pace.
+    *
+    * As you see, producer and consumer are coded around the idea of keeping and
+    * modifying state, just as with unbounded queues. Also we do not need to
+    * introduce an artificial delay in producers, as soon as the queue gets full
+    * they will be 'blocked' thus giving a chance to consumers to read data.
+    *
+    * As the final step we must adapt the main program to use these new
+    * consumers and producers. Let's say we limit the queue size to 100
+    */
+  def producer[F[_]: Async: Console](
+      id: Int,
+      counterR: Ref[F, Int],
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+
+    def offer(i: Int): F[Unit] =
+      Deferred[F, Unit].flatMap[Unit] { offerer =>
+        stateR.modify {
+          case State(queue, capacity, takers, offerers) if takers.nonEmpty =>
+            val (taker, rest) = takers.dequeue
+            State(queue, capacity, rest, offerers) -> taker.complete(i).void
+          case State(queue, capacity, takers, offerers)
+              if queue.size < capacity =>
+            State(queue.enqueue(i), capacity, takers, offerers) -> Async[F].unit
+          case State(queue, capacity, takers, offerers) =>
+            State(queue, capacity, takers, offerers.enqueue(i -> offerer)) ->
+              offerer.get
+        }.flatten
+      }
+
+    for
+      i <- counterR.getAndUpdate(_ + 1)
+      _ <- offer(i)
+      _ <- Async[F].whenA(i % 100000 == 0)(
+        Console[F].println(s"Producer $id has reached $i items")
+      )
+      _ <- producer(id, counterR, stateR)
+    yield ()
+
+  def run(args: List[String]): IO[ExitCode] =
+    for
+      stateR <- Ref.of[IO, State[IO, Int]](State.empty[IO, Int](capacity = 100))
+      counterR <- Ref.of[IO, Int](1)
+      producers =
+        List.range(1, 11).map(producer(_, counterR, stateR)) // 10 producers
+      consumers = List.range(1, 11).map(consumer(_, stateR)) // 10 consumers
+      res <- (producers ++ consumers).parSequence.as(
+        ExitCode.Success
+      ).handleErrorWith {
+        t =>
+          Console[IO].errorln(
+            s"Error caught: ${t.getMessage}"
+          ).as(ExitCode.Error)
+      }
+    yield res
+
+/** With cancellation capabilities
+  *
+  * We shall ask ourselves, is this implementation cancelation-safe? That is,
+  * what happens if the fiber running a consumer or a producer gets canceled?
+  * Does state become inconsistent? Let's check producer first. State is handled
+  * by its internal offer, so we will focus on it. And, for the sake of clarity
+  * in our analysis let's reformat the code using a for-comprehension:
+  *
+  * {{{
+  *     import cats.effect.Deferred
+  *
+  *     def offer[F[_]](i: Int): F[Unit] =
+  *       for {
+  *         offerer <- Deferred[F, Int]
+  *         op      <- stateR.modify {???} // `op` is an F[] to be run
+  *         _       <- op
+  *       } yield ()
+  * }}}
+  *
+  * So far so good. Now, cancelation steps into action in each .flatMap in F,
+  * that is, in each step of our for-comprehension. If the fiber gets canceled
+  * right before or after the first step, well, that is not an issue. The
+  * offerer will be eventually garbage collected, that's all. But what if the
+  * cancelation happens right after the call to modify? Well, then `op` will not
+  * be run. Recall that, by the content of modify, that op can be
+  * `taker.complete(i).void`, `Sync[F].unit` or `offerer.get`. Cancelling after
+  * having removed the taker or added the offerer to the state but without
+  * running op will leave the state inconsistent. We can quickly fix this by
+  * making that code uncancelable:
+  *
+  * {{{
+  *
+  * def offer[F[_]](i: Int): F[Unit] =
+  *  for {
+  *    offerer <- Deferred[F, Int]
+  *    _       <- F.uncancelable { poll => // `poll` ignored at this point, we'll discuss it later
+  *                 for {
+  *                   op <- stateR.modify {???} // `op` is an F[] to be run
+  *                   _  <- op // `taker.complete(i).void`, `Sync[F].unit` or `offerer.get`
+  *                 } yield ()
+  *              }
+  *  } yield ()
+  * }}}
+  *
+  * What is the problem here? If `op` is non-blocking, that is, if it is either
+  * F.unit or taker.complete(a).void, then our solution would be ok. But when
+  * the operation is offerer.get we have an issue as .get will block until
+  * offerer is completed (recall it is a Deferred instance). So the fiber will
+  * not be able to progress, but at the same time we have set that operation
+  * inside an uncancelable region. So there is no way to cancel that blocked
+  * fiber! For example, we cannot set a timeout on its execution! Thus, if the
+  * offerer is never completed then that fiber will never finish.
+  *
+  * This can be addressed using Poll[F], which is passed as parameter by
+  * F.uncancelable. Poll[F] is used to define cancelable code inside the
+  * uncancelable region. So if the operation to run was offerer.get we will
+  * embed that call inside the Poll[F], thus ensuring the blocked fiber can be
+  * canceled. Finally, we must also take care of cleaning up the state if there
+  * is indeed a cancelation. That cleaning up will have to remove the offerer
+  * from the list of offerers kept in the state, as it shall never be completed.
+  * Our offer function has become below.
+  *
+  * The consumer part must deal with cancelation in the same way. It will use
+  * poll to enable cancelation on the blocking calls, but at the same time it
+  * will make sure to clean up the state when a cancelation occurs. In this
+  * case, the blocking call is taker.get, when such call is canceled the taker
+  * will be removed from the list of takers in the state. So our consumer is
+  * below.
+  *
+  */
+object ProducerConsumerBoundedCancelable extends IOApp:
+
+  case class State[F[_], A](
+      queue: Queue[A],
+      capacity: Int,
+      takers: Queue[Deferred[F, A]],
+      offerers: Queue[(A, Deferred[F, Unit])]
+  )
+
+  object State:
+    def empty[F[_], A](capacity: Int): State[F, A] =
+      State(Queue.empty, capacity, Queue.empty, Queue.empty)
+
+  def producer[F[_]: Async: Console](
+      id: Int,
+      counterR: Ref[F, Int],
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+
+    def offer(i: Int): F[Unit] =
+      Deferred[F, Unit].flatMap[Unit] { offerer =>
+        Async[F].uncancelable {
+          poll => // `poll` used to embed cancelable code, i.e. the call to `offerer.get`
+            stateR.modify {
+              case State(queue, capacity, takers, offerers)
+                  if takers.nonEmpty =>
+                val (taker, rest) = takers.dequeue
+                State(queue, capacity, rest, offerers) -> taker.complete(i).void
+              case State(queue, capacity, takers, offerers)
+                  if queue.size < capacity =>
+                State(queue.enqueue(i), capacity, takers, offerers) ->
+                  Async[F].unit
+              case State(queue, capacity, takers, offerers) =>
+                val cleanup = stateR.update { s =>
+                  s.copy(offerers = s.offerers.filter(_._2 ne offerer))
+                }
+                State(
+                  queue,
+                  capacity,
+                  takers,
+                  offerers.enqueue(i -> offerer)
+                ) -> poll(offerer.get).onCancel(cleanup)
+            }.flatten
+        }
+      }
+
+    for
+      i <- counterR.getAndUpdate(_ + 1)
+      _ <- offer(i)
+      _ <- Async[F].whenA(i % 100000 == 0)(
+        Console[F].println(s"Producer $id has reached $i items")
+      )
+      _ <- producer(id, counterR, stateR)
+    yield ()
+
+  def consumer[F[_]: Async: Console](
+      id: Int,
+      stateR: Ref[F, State[F, Int]]
+  ): F[Unit] =
+
+    val take: F[Int] =
+      Deferred[F, Int].flatMap { taker =>
+        Async[F].uncancelable { poll =>
+          stateR.modify {
+            case State(queue, capacity, takers, offerers)
+                if queue.nonEmpty && offerers.isEmpty =>
+              val (i, rest) = queue.dequeue
+              State(rest, capacity, takers, offerers) -> Async[F].pure(i)
+            case State(queue, capacity, takers, offerers) if queue.nonEmpty =>
+              val (i, rest) = queue.dequeue
+              val ((move, release), tail) = offerers.dequeue
+              State(rest.enqueue(move), capacity, takers, tail) ->
+                release.complete(()).as(i)
+            case State(queue, capacity, takers, offerers)
+                if offerers.nonEmpty =>
+              val ((i, release), rest) = offerers.dequeue
+              State(queue, capacity, takers, rest) -> release.complete(()).as(i)
+            case State(queue, capacity, takers, offerers) =>
+              val cleanup = stateR.update { s =>
+                s.copy(takers = s.takers.filter(_ ne taker))
+              }
+              State(queue, capacity, takers.enqueue(taker), offerers) ->
+                poll(taker.get).onCancel(cleanup)
+          }.flatten
+        }
+      }
+
+    for
+      i <- take
+      _ <- Async[F].whenA(i % 100000 == 0)(
+        Console[F].println(s"Consumer $id has reached $i items")
+      )
+      _ <- consumer(id, stateR)
+    yield ()
+
+  override def run(args: List[String]): IO[ExitCode] =
+    for
+      stateR <- Ref.of[IO, State[IO, Int]](State.empty[IO, Int](capacity = 100))
+      counterR <- Ref.of[IO, Int](1)
+      producers = List.range(1, 11).map(producer(_, counterR, stateR))
+      consumers = List.range(1, 11).map(consumer(_, stateR))
+      res <- (producers ++ consumers)
+        .parSequence.as(ExitCode.Success)
+        // Run producers and consumers in parallel until done (likely by user cancelling with CTRL-C)
+        .handleErrorWith { t =>
+          Console[IO].errorln(
+            s"Error caught: ${t.getMessage}"
+          ).as(ExitCode.Error)
+        }
+    yield res
