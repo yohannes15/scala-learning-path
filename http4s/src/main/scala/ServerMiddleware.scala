@@ -69,7 +69,7 @@ object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
 
   /** Headers Middleware */
 
-  /** Caching
+  /** NOTE: Caching
     *
     * This middleware adds response headers so that clients know how to cache a
     * response. It performs no server-side caching. See
@@ -87,7 +87,7 @@ object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
 
   val cacheClient = Client.fromHttpApp(cacheService)
   val h1 = cacheClient.run(okRequest).use(_.headers.pure[IO]).unsafeRunSync()
-  println(h1)
+  println(s"cacheClient: $h1")
   // Headers = Headers(
   //  Content-Length: 0, Cache-Control: public, max-age=10800,
   //  Date: Tue, 05 May 2026 15:01:46 GMT, Expires: Tue, 05 May 2026 18:01:46 GMT
@@ -98,3 +98,16 @@ object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
   val h3 = cacheClient.run(postRequest).use(_.headers.pure[IO]).unsafeRunSync()
   println(h3)
   // Headers = Headers(Content-Length: 0)
+
+  /** NOTE: Date
+    *
+    * Adds the current date to the response.
+    */
+  import org.http4s.server.middleware.Date
+
+  val dateService = Date.httpRoutes(service).orNotFound
+  val dateClient = Client.fromHttpApp(dateService)
+
+  val dh = dateClient.run(okRequest).use(_.headers.pure[IO]).unsafeRunSync()
+  println(s"dateClient: $dh")
+  // Headers = Headers(Content-Length: 0, Date: Tue, 05 May 2026 15:01:46 GMT)
