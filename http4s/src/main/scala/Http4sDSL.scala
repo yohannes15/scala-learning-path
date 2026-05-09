@@ -1,5 +1,7 @@
 import org.http4s.HttpRoutes
 import cats.effect.IO
+import cats.syntax.all.*
+import cats.implicits.*
 import org.http4s.Response
 import org.http4s.Status
 import org.http4s.Request
@@ -15,6 +17,11 @@ import org.http4s.HttpDate
 import scala.concurrent.duration.*
 import scala.util.Try
 import java.time.LocalDate
+import org.http4s.QueryParamDecoder
+import org.http4s.QueryParamCodec
+import cats.data.Validated.Invalid
+import cats.data.Validated.Valid
+import org.http4s.ParseFailure
 
 /** The http4s DSL
   *
@@ -496,3 +503,208 @@ object Requests:
   //   `` = Stream(..),
   //   `` = org.typelevel.vault.Vault@3cbb78a8
   // )
+
+import org.http4s.dsl.impl.MatrixVar
+
+/** Handling Matrix Path Parameters
+  *
+  * Matrix path parameters can be extracted using `MatrixVar`.
+  *
+  * In following example, we extract the `first` and `last` matrix path
+  * parameters. By default, matrix path parameters are extracted as Strings
+  *
+  * Like standard path parameters, matrix path parameters can be extracted as
+  * numeric types using `IntVar` or `LongVar`.
+  */
+@main def handlingMatrixPathParameters() =
+  given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
+
+  object FullNameExtractor
+      extends MatrixVar("name", List("first", "last", "id"))
+
+  val greetingService = HttpRoutes.of[IO] {
+    case GET ->
+        Root /
+        "hello" / FullNameExtractor(first, last, IntVar(id)) / "greeting" =>
+      Ok(s"Hello $first $last. Your User ID is $id.")
+  }
+  val res = greetingService
+    .orNotFound(Request[IO](
+      method = Method.GET,
+      uri = uri"/hello/name;first=john;last=doe/greeting"
+    )).unsafeRunSync()
+  // Response[[A]IO[A]] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 37),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@1f6613b2
+  // )
+
+import java.time.{Year, Instant}
+import java.time.format.DateTimeFormatter
+
+/** Handing Query Parameters
+  *
+  * A query parameter needs to have a `QueryParamDecoderMatcher` provided to
+  * extract it. In order for the `QueryParamDecoderMatcher` to work there needs
+  * to be an implicit `QueryParamDecoder[T]` in scope. QueryParamDecoders for
+  * simple types can be found in the QueryParamDecoder object. There are also
+  * QueryParamDecoderMatchers available which can be used to return optional or
+  * validated parameter values.
+  *
+  * In the example below we're finding query params named `country` and `year`
+  * and then parsing them as `String` and `java.time.Year`.
+  *
+  * Missing Required Query Parameters
+  *
+  * A request with a missing required query parameter will fall through to the
+  * case statements and may eventually return a 404. To provide contextual error
+  * handling, optional query parameters or fallback routes can be used.
+  */
+@main def handlingQueryParameters() =
+  given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
+
+  object CountryQueryParamMatcher
+      extends QueryParamDecoderMatcher[String]("country")
+
+  given yearQueryParamDecoder: QueryParamDecoder[Year] =
+    QueryParamDecoder[Int].map(Year.of)
+  // QueryParamDecoder[Year] = org.http4s.QueryParamDecoder$$anon$7@6c3ee458
+
+  object YearQueryParamMatcher extends QueryParamDecoderMatcher[Year]("year")
+
+  def getAverageTemperatureForCountryAndYear(
+      country: String,
+      year: Year
+  ): IO[Double] = IO.pure(32.00)
+
+  val averageTemperatureService = HttpRoutes.of[IO] {
+    case GET -> Root / "weather" / "temperature" :?
+        CountryQueryParamMatcher(country) +& YearQueryParamMatcher(year) =>
+      Ok(getAverageTemperatureForCountryAndYear(
+        country,
+        year
+      ).map(s"Average temperatur for $country in $year was " + _))
+  }
+
+  /** To support a QueryParamDecoderMatcher[Instant], consider
+    * QueryParamCodec#instantQueryParamCodec. That outputs a
+    * QueryParamCodec[Instant], which offers both a QueryParamEncoder[Instant]
+    * and QueryParamDecoder[Instant].
+    */
+  given isoInstantCodec: QueryParamDecoder[Instant] =
+    QueryParamCodec.instantQueryParamCodec(DateTimeFormatter.ISO_INSTANT)
+
+  object IsoInstantParamMatcher
+      extends QueryParamDecoderMatcher[Instant]("timestamp")
+
+  /** Flag Query Parameters
+    *
+    * To handle query parameters that do not contain any values but are simple
+    * flags the FlagQueryParamMatcher should be used.
+    *
+    * Please note that you have to use the same syntax as with the other query
+    * parameters (i.e. MyFlag(value)) in the routes definition.
+    */
+  object WithClouds extends FlagQueryParamMatcher("with-clouds")
+
+  val serviceWithFlags = HttpRoutes.of[IO] {
+    case GET -> Root / "weather" / "map" :? WithClouds(clouds) =>
+      if (clouds)
+        Ok("Showing clouds on the weather map.")
+      else
+        Ok("Showing no clouds on the weather map")
+  }
+
+  /** Optional Query Parameters
+    *
+    * To accept an optional query parameter a `OptionalQueryParamDecoderMatcher`
+    * can be used
+    */
+  object OptionalYearQueryParamMatcher
+      extends OptionalQueryParamDecoderMatcher[Year]("year")
+
+  def getAverageTemperatureForCurrentYear: IO[String] = IO.pure("27.00")
+  def getAverageTemperatureForYear(y: Year): IO[String] = IO.pure("27.00")
+
+  val routes = HttpRoutes.of[IO] {
+    case GET -> Root / "temperature" :?
+        OptionalYearQueryParamMatcher(maybeYear) =>
+      maybeYear match
+        case None =>
+          Ok(getAverageTemperatureForCurrentYear)
+        case Some(year) =>
+          Ok(getAverageTemperatureForYear(year))
+  }
+
+  /** Optional Multiple Query Parameters
+    *
+    * To accept multiple query parameters that are also optional, a
+    * `OptionalMultipleQueryParamDecoderMatcher` can be used
+    */
+  object OptionalMultiColorQueryParam
+      extends OptionalMultiQueryParamDecoderMatcher[String]("maybeColors")
+
+  def getProductsOfMaybeColors(maybeColors: List[String]): IO[String] =
+    IO.pure("purple")
+
+  val routes2 = HttpRoutes.of[IO] {
+    case GET -> Root / "products" :?
+        OptionalMultiColorQueryParam(maybeColors) =>
+
+      maybeColors match
+        case Invalid(e) => BadRequest(
+            s"Parse Error(s): ${e.toList.map(_.message).mkString(",")}"
+          )
+        case Valid(a) => Ok(getProductsOfMaybeColors(a))
+  }
+
+/** Invalid Query Parameter Handling
+  *
+  * To validate query parsing you can use `ValidatingQueryParamDecoderMatcher`
+  * which returns a `ParseFailure` if param can't be decoded. Be careful not to
+  * return the raw invalid value in a `BadRequest` because it could be used for
+  * `Cross Site Scripting` attacks
+  */
+object InvalidQueryParamHandling:
+  given yearQueryParamDecoder: QueryParamDecoder[Year] =
+    QueryParamDecoder[Int]
+      .emap(i =>
+        Try(Year.of(i))
+          .toEither
+          .leftMap(t => ParseFailure(t.getMessage, t.getMessage))
+      )
+  // yearQueryParamDecoder: QueryParamDecoder[Year] = org.http4s.QueryParamDecoder$$anon$9@5219726a
+
+  object YearQueryParamMatcher
+      extends ValidatingQueryParamDecoderMatcher[Year]("year")
+
+  def getAverageTemperatureForYear(year: Year): IO[String] = IO.pure("32.00")
+
+  val routes = HttpRoutes.of[IO] {
+    case GET -> Root / "temperature" :? YearQueryParamMatcher(yearValidated) =>
+      yearValidated.fold(
+        parseFailures => BadRequest("unable to parse argument year"),
+        year => Ok(getAverageTemperatureForYear(year))
+      )
+  }
+
+  /** Optional Invalid Query Parameter Handling
+    *
+    * Consider `OptionalValidatingQueryParamDecoderMatcher[A]` given the power
+    * that `Option[cats.data.ValidatedNel[org.http4s.ParseFailure, A]]`
+    * provides.
+    */
+  object LongParamMatcher
+      extends OptionalValidatingQueryParamDecoderMatcher[Long]("long")
+
+  val routes2 = HttpRoutes.of[IO] {
+    case GET -> Root / "number" :? LongParamMatcher(maybeNumber) =>
+      maybeNumber match
+        case None    => BadRequest("missing number")
+        case Some(n) => n.fold(
+            parseFailures => BadRequest("unable to parse argument 'long'"),
+            year => Ok(n.toString)
+          )
+  }
