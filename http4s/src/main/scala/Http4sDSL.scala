@@ -7,6 +7,12 @@ import org.http4s.Method
 import org.http4s.implicits.*
 import org.http4s.dsl.io.*
 import cats.effect.unsafe.IORuntime
+import org.http4s.headers.`Cache-Control`
+import cats.data.NonEmptyList
+import org.http4s.CacheDirective.`no-cache`
+import org.http4s.ResponseCookie
+import org.http4s.HttpDate
+import scala.concurrent.duration.*
 
 /** The http4s DSL
   *
@@ -156,10 +162,240 @@ val service = HttpRoutes.of[IO] {
 
 /** Headers
   *
-  * http4s adds a minimum set of headers depending on the response, e.g:
+  * http4s adds a minimum set of headers depending on the response.
+  *
+  * Extra headers can be added using `putHeaders` for example to specify cache
+  * policies.
+  *
+  * http4s defines all the well known headers directly, but sometimes you need
+  * to define custom headers, typically prefixed by an `X-`. In simple cases you
+  * can construct a Header instance by hand!
   */
-
 object Headers:
   given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
   val headers = Ok("Ok response!").unsafeRunSync().headers
   // Headers = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 12)
+
+  val ok = Ok("Ok response.", `Cache-Control`(NonEmptyList(`no-cache`(), Nil)))
+    .unsafeRunSync().headers
+  // Headers = Headers(
+  //  Content-Type: text/plain; charset=UTF-8,
+  //  Cache-Control: no-cache,
+  //  Content-Length: 12
+  // )
+
+  val ok2 =
+    Ok("Ok response.", "X-Auth-Token" -> "value").unsafeRunSync().headers
+  // Headers = Headers(
+  //  Content-Type: text/plain; charset=UTF-8,
+  //  X-Auth-Token: value,
+  //  Content-Length: 12
+  // )
+
+/** Cookies
+  *
+  * http4s has special support for Cookie headers using the `Cookie` type to add
+  * and invalidate cookies. Adding a cookie will generate the correct
+  * `Set-Cookie` header
+  */
+object Cookies:
+  given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
+  val ok = Ok("Ok Response!").map(_.addCookie(ResponseCookie(
+    "foo",
+    "bar"
+  ))).unsafeRunSync().headers
+  // Headers = Headers(
+  //  Content-Type: text/plain; charset=UTF-8,
+  //  Content-Length: 12,
+  //  Set-Cookie: foo=bar
+  // )
+
+  /** Cookie can be further customized to set, e.g., expiration, the secure
+    * flag, httpOnly, flag, etc
+    */
+  val cookieResp =
+    for
+      resp <- Ok("Ok response.")
+      now <- HttpDate.current[IO]
+    yield resp.addCookie(ResponseCookie(
+      "foo",
+      "bar",
+      expires = Some(now),
+      httpOnly = true,
+      secure = true
+    ))
+
+  val headers: org.http4s.Headers = cookieResp.unsafeRunSync().headers
+  // Headers = Headers(
+  //  Content-Type: text/plain; charset=UTF-8,
+  //  Content-Length: 12,
+  //  Set-Cookie: foo=bar; Expires=Tue, 05 May 2026 15:01:31 GMT; Secure; HttpOnly
+  // )
+
+  /** To request a cookie to be removed on the client, you need to set the
+    * cookie value to empty. http4s can do that with removeCookie:
+    */
+  val headers2: org.http4s.Headers =
+    Ok("ok response!").map(_.removeCookie("foo")).unsafeRunSync().headers
+  // Headers = Headers(
+  //  Content-Type: text/plain; charset=UTF-8,
+  //  Content-Length: 12,
+  //  Set-Cookie: foo=; Expires=Thu, 01 Jan 1970 00:00:00 GMT
+  // )
+
+/** Responsing with a `Body`
+  *
+  * Simple Bodies
+  *
+  * Most status codes take an argument as a body. In http4s, `Request[F]` and
+  * `Response[F]` bodies are represented as a `fs2.Stream[F, Byte]`. It's also
+  * considered good HTTP manners to provide a `Content-Type` and, where known in
+  * advance, `Content-Length` header in one's responses.
+  *
+  * This is neatly handled by http4s' `EntityEncoder`s. We'll cover these in
+  * more depth later. The imporant point for now is that a response body can be
+  * generated for any type with an implicit `EntityEncoder` in scope. http4s
+  * prvides several out of the box.
+  *
+  * Per the HTTP specification, some status codes don't support a body. http4s
+  * prevents such nonsense at compile time:
+  *
+  * NoContent("does not compile")
+  */
+object ResponseBodies:
+  given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
+  val ok = Ok("Received Request.").unsafeRunSync()
+  // Response[IO] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 17),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@513cc49d
+  // )
+
+  import java.nio.charset.StandardCharsets.UTF_8
+  val ok2 = Ok("binary".getBytes(UTF_8)).unsafeRunSync()
+  // Response[IO] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: application/octet-stream, Content-Length: 6),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@464e89fe
+  // )
+
+  import scala.concurrent.Future
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  /** Asynchronous Responses
+    *
+    * While http4s prefers `F[_]: Async`, you may be working with libraries that
+    * use standard library like `Future`.
+    *
+    * You can respond with a `Future` of any type that has an `EntityEncoder` by
+    * lifting it into an IO or any F[_] that suspends future. Note: unlike IO,
+    * wrapping a side effect in Future doesn't suspend it, and the resulting
+    * expression would still be side effectful
+    *
+    * `IO.fromFuture` ensures that the suspended future is shifted to the
+    * correct thread pool.
+    *
+    * NOTE: In both cases, a Content-Length header is calculated. http4s waits
+    * for the Future or F to complete before wrapping it in its HTTP envelope,
+    * and thus has what it needs to calculate a Content-Length.
+    */
+  val ioFuture = Ok(IO.fromFuture(IO(Future {
+    println("I run when the future is constructed")
+    "greetings from the future!"
+  })))
+
+  val res = ioFuture.unsafeRunSync()
+  // I run when the future is constructed.
+  // Response[IO] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 26),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@58f63ddb
+  // )
+
+  // As good functional programmers who like to delay our side effects,
+  // we of course prefer to operate in Fs:
+  val io = Ok(IO {
+    println("I run when the IO is run")
+    "Mission accomplished"
+  })
+
+  val res2 = io.unsafeRunSync()
+  // I run when the IO is run.
+  // Response[IO] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 21),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@59b6972f
+  // )
+
+  import fs2.Stream
+
+  /** Streaming Bodies
+    *
+    * Streaming bodies are supported by returning a `fs2.Stream`. Like `IO`, the
+    * stream may be of any type that has an `EntityEncoder`. An intro to
+    * `Stream` is out of scope, but we can glimpse the power here. This stream
+    * emits the elapsed time every 100 milliseconds for one second.
+    */
+  val drip: Stream[IO, String] =
+    Stream.awakeEvery[IO](100.millis).map(_.toString).take(10)
+
+  val dripOutIO = drip
+    .through(fs2.text.lines)
+    .evalMap(s => IO { println(s); s })
+    .compile
+    .drain
+  // IO[Unit] = Uncancelable(
+  //   body = cats.effect.IO$$$Lambda$20182/0x0000000804ce7040@2038a56e,
+  //   event = cats.effect.tracing.TracingEvent$StackTrace
+  // )
+  dripOutIO.unsafeRunSync()
+  /* 101745104 nanoseconds200897022 nanoseconds300802612 nanoseconds400815541
+   * nanoseconds500806109 nanoseconds600752667 nanoseconds700732613
+   * nanoseconds800813478 nanoseconds900734637 nanoseconds1000707753
+   * nanoseconds
+   */
+
+  /** When wrapped in a Response[F], http4s will flush each chunk of a Stream as
+    * they are emitted.
+    *
+    * NOTE: a stream's length can't generally be anticipated before it runs, so
+    * this triggers chunked transfer encoding:
+    */
+  val dripOk = Ok(drip)
+  // IO[Response[IO]] = Pure(
+  //   value = (
+  //     `` = Status(code = 200),
+  //     `` = HttpVersion(major = 1, minor = 1),
+  //     `` = Headers(Content-Type: text/plain; charset=UTF-8, Transfer-Encoding: chunked),
+  //     `` = Stream(..),
+  //     `` = org.typelevel.vault.Vault@673f2887
+  //   )
+  // )
+
+/** Matching and Extracting Requests
+  *
+  * NOTE: A `Request` is a regular case class - you can destructure it to
+  * extract its values. By extension, you can also match/case it with different
+  * possible destructurings. To build these different extractors, you can make
+  * use of the DSL
+  *
+  * The -> object
+  *
+  * More often, you extract the Request into a HTTP Method and path info via the
+  * `->` object. On the left side is the method, and on the right side, the path
+  * info. The following matches a request to `GET /hello`:
+  */
+object Requests:
+  val route = HttpRoutes.of[IO] {
+    // Methods such as GET are typically found in org.http4s.Method,
+    // but are imported automatically as part of the DSL.
+    case GET -> Root / "hello" => Ok("hello")
+  }
