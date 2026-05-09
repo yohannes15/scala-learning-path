@@ -391,11 +391,60 @@ object ResponseBodies:
   *
   * More often, you extract the Request into a HTTP Method and path info via the
   * `->` object. On the left side is the method, and on the right side, the path
-  * info. The following matches a request to `GET /hello`:
+  * info. The following matches a request to `GET /hello`
+  *
+  * Path Info
+  *
+  * Path matching is done on the request's `pathInfo`. Path info is the
+  * request's URI's path after the following:
+  *
+  *   - the mount point of the service
+  *   - the prefix, if the service is composed with a `Router`
+  *   - the prefix, if the service is rewritten with `TranslateUri`
+  *
+  * Matching on request.pathInfo instead of request.uri.path allows multiple
+  * services to be composed without rewriting all the path matchers.
   */
 object Requests:
   val route = HttpRoutes.of[IO] {
     // Methods such as GET are typically found in org.http4s.Method,
     // but are imported automatically as part of the DSL.
     case GET -> Root / "hello" => Ok("hello")
+  }
+
+  /** Matching Paths
+    *
+    * A request to the root of the service is matched with the `Root` extractor.
+    * `Root` consumes the leading slash of the path info. The following matches
+    * requests to `GET /`:
+    */
+  val rootRoute = HttpRoutes.of[IO] {
+    case GET -> Root => Ok("root")
+  }
+
+  /** We usually match paths in a left-associative manner with Root and /. Each
+    * "/" after the initial slash delimits a path segment, and is represented in
+    * the DSL with the '/' extractor. Segments can be matched as literals or
+    * made available through standard Scala pattern matching. For example, the
+    * following service responds with "Hello, Alice!" to GET /hello/Alice:
+    */
+  val nameRoute = HttpRoutes.of[IO] {
+    case GET -> Root / "hello" / name => Ok(s"Hello, $name!")
+  }
+
+  /** The above assumes only one path segment after "hello", and would not match
+    * GET /hello/Alice/Bob. To match to an arbitrary depth, we need a
+    * right-associative /: extractor. In this case, there is no Root, and the
+    * final pattern is a Path of the remaining segments. This would say "Hello,
+    * Alice and Bob!"
+    */
+  val arbitraryNameRightAssocativeRoute = HttpRoutes.of[IO] {
+    case GET -> "hello" /: rest =>
+      Ok(s"""Hello, ${rest.segments.mkString(" and ")}""")
+  }
+
+  /** To match a file extension on a segment, use the ~ extractor: */
+  val fileRoute = HttpRoutes.of[IO] {
+    case GET -> Root / file ~ "json" =>
+      Ok(s"""{"response": "You asked for $file"}""")
   }
