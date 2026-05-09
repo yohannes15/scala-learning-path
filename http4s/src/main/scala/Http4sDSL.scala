@@ -60,6 +60,16 @@ import org.http4s.ParseFailure
   * import cats.effect.unsafe.IORuntime
   * implicit val runtime: IORuntime = cats.effect.unsafe.IORuntime.global
   * }}}
+  *
+  * Rough picture of `HttpRoutes[IO]`: it is a `Kleisli` that, for each incoming
+  * `Request[IO]`, runs your routes and yields an `IO[Option[Response[IO]]]` — a
+  * response inside `IO`, or `None` when no route matches. The library spells
+  * that as `Kleisli[OptionT[IO, *], Request[IO], Response[IO]]` (the `OptionT`
+  * is what turns “no match” into `None` instead of an error).
+  *
+  * That is why middleware is often written as `Kleisli { req => ... }`: you
+  * start from the request, call the inner `HttpRoutes`, then `map` / `flatMap`
+  * the `IO` (and adjust the `Response`) you get back. /
   */
 val service = HttpRoutes.of[IO] {
   case _ => IO(Response(Status.Ok))
