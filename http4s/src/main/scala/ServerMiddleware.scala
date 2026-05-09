@@ -15,7 +15,7 @@ given runtime: IORuntime = cats.effect.unsafe.implicits.global
 
 object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
 
-/** Server Middleware
+/** Server Middleware (https://http4s.org/v0.23/docs/server-middleware.html)
   *
   * Http4s includes some middleware out of the box in the
   * `org.http4s.server.middleware` package. Some of it is document in its own
