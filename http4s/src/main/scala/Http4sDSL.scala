@@ -13,6 +13,8 @@ import org.http4s.CacheDirective.`no-cache`
 import org.http4s.ResponseCookie
 import org.http4s.HttpDate
 import scala.concurrent.duration.*
+import scala.util.Try
+import java.time.LocalDate
 
 /** The http4s DSL
   *
@@ -448,3 +450,49 @@ object Requests:
     case GET -> Root / file ~ "json" =>
       Ok(s"""{"response": "You asked for $file"}""")
   }
+
+/** Handling Path Parameters
+  *
+  * Path params can be extracted and converted to a specifc type but are
+  * `String`s by default. There are numeric extractors provided in the form of
+  * IntVar and LongVar, as well as UUIDVar extractor for `java.util.UUID`.
+  *
+  * If you want to extract a variable of type `T`, you can provide a custom
+  * extractor object which implements `def unapply(str: string): Option[T]`,
+  * similar to the way in which IntVar does it
+  */
+@main def handlingPathParameters() =
+  def getUserName(userId: Int): IO[String] = IO.pure(userId.toString)
+
+  val usersService = HttpRoutes.of[IO] {
+    case GET -> Root / "users" / IntVar(userId) => Ok(getUserName(userId))
+  }
+
+  object LocalDateVar:
+    def unapply(str: String): Option[LocalDate] =
+      if (!str.isEmpty)
+        println(s"parsing $str")
+        Try(LocalDate.parse(str)).toOption
+      else
+        None
+
+  def getTemperatureForecast(date: LocalDate): IO[Double] = IO(-10.00)
+
+  val dailyWeatherService = HttpRoutes.of[IO] {
+    case GET -> Root / "weather" / "temperature" / LocalDateVar(localDate) =>
+      Ok(getTemperatureForecast(
+        localDate
+      ).map(s"The temperature on $localDate will be: " + _))
+  }
+
+  val request = Request[IO](Method.GET, uri"/weather/temperature/2016-11-05")
+  given runtime: IORuntime = cats.effect.unsafe.IORuntime.global
+
+  dailyWeatherService.orNotFound(request).unsafeRunSync()
+  // Response[[A]IO[A]] = (
+  //   `` = Status(code = 200),
+  //   `` = HttpVersion(major = 1, minor = 1),
+  //   `` = Headers(Content-Type: text/plain; charset=UTF-8, Content-Length: 44),
+  //   `` = Stream(..),
+  //   `` = org.typelevel.vault.Vault@3cbb78a8
+  // )
