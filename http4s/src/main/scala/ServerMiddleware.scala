@@ -65,9 +65,11 @@ object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
   val waitRequest = Request[IO](Method.GET, uri"/wait")
   val boomRequest = Request[IO](Method.GET, uri"/boom")
   val reverseRequest = Request[IO](Method.POST, uri"/reverse")
-  // val client = Client.fromHttpApp(service.orNotFound)
+  val client = Client.fromHttpApp(service.orNotFound)
 
-  /** Headers Middleware */
+//*******************************************************************************
+//**************************Headers Middleware **********************************
+//*******************************************************************************
 
   /** NOTE: Caching
     *
@@ -111,3 +113,97 @@ object NameQueryParamMatcher extends QueryParamDecoderMatcher[String]("name")
   val dh = dateClient.run(okRequest).use(_.headers.pure[IO]).unsafeRunSync()
   println(s"dateClient: $dh")
   // Headers = Headers(Content-Length: 0, Date: Tue, 05 May 2026 15:01:46 GMT)
+
+  /** NOTE: HeaderEcho
+    *
+    * Adds headers included in the request to the response.
+    */
+  import org.http4s.server.middleware.HeaderEcho
+  val echoService =
+    HeaderEcho.httpRoutes(echoHeadersWhen = _ => true)(service).orNotFound
+  val echoClient = Client.fromHttpApp(echoService)
+
+  val he = echoClient.run(
+    okRequest.putHeaders("Hello" -> "hi")
+  ).use(_.headers.pure[IO]).unsafeRunSync()
+  // Headers = Headers(Content-Length: 0, Hello: Hi)
+
+  /** NOTE: Response Timing
+    *
+    * Sets response header with the request duration.
+    */
+  import org.http4s.server.middleware.ResponseTiming
+
+  val timingService = ResponseTiming(service.orNotFound)
+  val timingClient = Client.fromHttpApp(timingService)
+
+  val tihe = timingClient.run(okRequest).use(_.headers.pure[IO]).unsafeRunSync()
+  // Headers = Headers(Content-Length: 0, X-Response-Time: 0)
+
+  /** NOTE: RequestId
+    *
+    * Use the RequestId middleware to automatically generate a X-Request-ID
+    * header for a request, if one wasn't supplied. Adds a X-Request-ID header
+    * to the response with the id generated or supplied as part of the request.
+    */
+  import org.http4s.server.middleware.RequestId
+
+  val requestIdService = RequestId.httpRoutes(HttpRoutes.of[IO] {
+    case req =>
+      val reqId = req.headers.get(ci"X-Request-ID").fold("null")(_.head.value)
+      // use request id to correlate logs with the request
+      Console[IO].println(s"request recieved. cid=$reqId") *> Ok()
+  })
+
+  val requestIdClient = Client.fromHttpApp(requestIdService.orNotFound)
+  // Note: req.attributes.lookup(RequestId.requestIdAttrKey) can also be used
+  // to lookup the request id extracted from the header, or the generated request id.
+
+  val rehe: (org.http4s.Headers, Option[String]) =
+    requestIdClient.run(okRequest).use(resp =>
+      (
+        resp.headers,
+        resp.attributes.lookup(RequestId.requestIdAttrKey)
+      ).pure[IO]
+    ).unsafeRunSync()
+  // request received, cid=e2480ff5-f2b8-4a68-a907-06455b647acc
+  // (Headers, Option[String]) = (
+  //   Headers(Content-Length: 0, X-Request-ID: e2480ff5-f2b8-4a68-a907-06455b647acc),
+  //   Some(value = "e2480ff5-f2b8-4a68-a907-06455b647acc")
+  // )
+
+  /** NOTE: StaticHeaders
+    *
+    * Adds static headers to the response.
+    */
+  import org.http4s.server.middleware.StaticHeaders
+
+  val sHService = StaticHeaders(Headers("X-Hello" -> "hi"))(service).orNotFound
+  val sHClient = Client.fromHttpApp(sHService)
+  val sh = sHClient.run(okRequest).use(_.headers.pure[IO]).unsafeRunSync()
+  // Headers = Headers(X-Hello: hi, Content-Length: 0)
+
+//*******************************************************************************
+//******************Request Rewriting Middleware*********************************
+//*******************************************************************************
+
+  /** NOTE: Auto Slash
+    *
+    * Removes a trailing slash from the requested url so that requests with
+    * trailing slash map to the route without.
+    */
+  import org.http4s.server.middleware.AutoSlash
+  val autoSlashService = AutoSlash(service).orNotFound
+  val autoSlashClient = Client.fromHttpApp(autoSlashService)
+  val okWithSlash = Request[IO](Method.GET, uri"/ok/")
+
+  // without the middleware the request with trailing slash fails
+  val tsuccess = client.status(okRequest).unsafeRunSync()
+  // Status = Status(code = 200)
+  val t404 = client.status(okWithSlash).unsafeRunSync()
+  // Status = Status(code = 404)
+  // with the middleware both work
+  val asSuccess = autoSlashClient.status(okRequest).unsafeRunSync()
+  // Status = Status(code = 200)
+  val withSuccess = autoSlashClient.status(okWithSlash).unsafeRunSync()
+  // res11: Status = Status(code = 200)
