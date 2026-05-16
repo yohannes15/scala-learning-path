@@ -1,5 +1,13 @@
 # Scala Backend API Learning Path (Typelevel First → ZIO Second)
 
+## Portfolio
+
+A structured roadmap for learning modern Scala backend development, with a focus on the Typelevel ecosystem (Cats Effect, http4s, circe, doobie) and ZIO. Includes runnable examples, exercises, and capstone projects to build REST APIs with PostgreSQL.
+
+This repository documents my hands-on learning journey through the Scala ecosystem, from language fundamentals to production-ready backend services. It's designed for experienced backend engineers (Python, C#, Go) who prefer official docs and videos over books.
+
+---
+
 **Profile:** experienced backend engineer (Python/C#), prefers **videos + official docs** over books, target **REST/JSON APIs** with **PostgreSQL**.
 
 **Primary stack (learn first):** Scala 3 · **Cats Effect** · **http4s** · **circe** · **doobie** · Postgres (**Flyway**).
@@ -10,7 +18,7 @@
 
 ## Why this order? (transferability)
 
-- **Learn first (Typelevel):** **Cats Effect**, **http4s**, **circe**, **doobie** — the bundle shows up constantly in **jobs, tutorials, and OSS**; you learn how those libraries **compose** (closest to “general Scala backend literacy”).
+- **Learn first (Typelevel):** **Cats Effect**, **http4s**, **circe**, **doobie** — the bundle shows up constantly in **jobs, tutorials, and OSS**; you learn how those libraries **compose** (closest to "general Scala backend literacy").
 - **Learn second (ZIO):** **ZIO** + **zio-http** — coherent and fast to ship; its own universe. From Typelevel **to** ZIO you mostly remap `IO` / `Resource` to `ZIO` / `ZLayer`. **ZIO → Typelevel** is doable but you spend more time reconciling **Cats** / `IO` / **fs2** in older code.
 
 **Rule of thumb:** master **one effect system deeply** (Cats Effect), then add **ZIO** in 2–3 weeks of focused docs + a port of a small service.
@@ -60,9 +68,9 @@ Set these up once; slow tooling kills momentum.
 
 **Cats core spine (read in dependency order, not sidebar A–Z):** **Semigroup → Monoid → Functor → Applicative → Monad → Foldable / Traverse**. Pair with **`Option`**, **`Either`**, and **`Validated`** (accumulating errors; lines up with Applicative). Skim **[Imports](https://typelevel.org/cats/imports.html)** when implicit resolution or syntax gets confusing. **Nested** and monad transformers can wait until the spine feels obvious.
 
-**Official entry:** [Cats — home](https://typelevel.org/cats/) and [Type classes](https://typelevel.org/cats/typeclasses.html) set the scene; drill into each type class’s own page as you go.
+**Official entry:** [Cats — home](https://typelevel.org/cats/) and [Type classes](https://typelevel.org/cats/typeclasses.html) set the scene; drill into each type class's own page as you go.
 
-**Local notes & runnable snippets:** [`cats/src/main/scala/learning/README.md`](cats/src/main/scala/learning/README.md) (this repo’s Cats topic tree).
+**Local notes & runnable snippets:** [`cats/src/main/scala/learning/README.md`](cats/src/main/scala/learning/README.md) (this repo's Cats topic tree).
 
 ### Phase B — Docs
 
@@ -136,7 +144,7 @@ Store items **in memory** (`Ref` from Cats Effect) first.
 
 ---
 
-## Phase F — “production-shaped” API skills
+## Phase F — "production-shaped" API skills
 
 Pick topics as needed; use **docs + one reference implementation** in your repo.
 
@@ -146,7 +154,7 @@ Pick topics as needed; use **docs + one reference implementation** in your repo.
 | Structured logging | [log4cats](https://typelevel.org/log4cats/) (common with Typelevel stack)                                                                                 |
 | Configuration      | [Ciris](https://cir.is/) or [pureconfig](https://pureconfig.github.io/docs/) or lightbend config — pick one and stay consistent                           |
 | Testing            | [MUnit](https://scalameta.org/munit/) or [ScalaTest](https://www.scalatest.org/) + [http4s client](https://http4s.org/v1.0/client/) for integration tests |
-| OpenAPI (optional) | [tapir](https://tapir.softwaremill.com/en/) (often introduced *after* you’re comfortable with http4s)                                                     |
+| OpenAPI (optional) | [tapir](https://tapir.softwaremill.com/en/) (often introduced *after* you're comfortable with http4s)                                                     |
 
 
 ---
@@ -209,13 +217,13 @@ Assume **~8–12 hrs/week**; adjust proportionally.
 
 ---
 
-## Success criteria (you’re “job-ready” to interview on this stack)
+## Success criteria (you're "job-ready" to interview on this stack)
 
 - You can **explain** `IO`, `Resource`, and why `IO` is used for side effects.
 - You can **build** a CRUD JSON API with **consistent error responses**.
 - You can **write** doobie queries and run them through a **transactor** safely.
 - You have **integration tests** that hit real HTTP + real Postgres (testcontainer or local).
-- You can **read** a ZIO service and map it mentally to “effects + dependency injection.”
+- You can **read** a ZIO service and map it mentally to "effects + dependency injection."
 
 ---
 
