@@ -1,21 +1,5 @@
 # Scala Backend API Learning Path (Typelevel First → ZIO Second)
 
-## Portfolio
-
-A structured roadmap for learning modern Scala backend development, with a focus on the Typelevel ecosystem (Cats Effect, http4s, circe, doobie) and ZIO. Includes runnable examples, exercises, and capstone projects to build REST APIs with PostgreSQL.
-
-This repository documents my hands-on learning journey through the Scala ecosystem, from language fundamentals to production-ready backend services. It's designed for experienced backend engineers (Python, C#, Go) who prefer official docs and videos over books.
-
----
-
-**Profile:** experienced backend engineer (Python/C#), prefers **videos + official docs** over books, target **REST/JSON APIs** with **PostgreSQL**.
-
-**Primary stack (learn first):** Scala 3 · **Cats Effect** · **http4s** · **circe** · **doobie** · Postgres (**Flyway**).
-
-**Secondary stack (learn after):** **ZIO** · **zio-http** (or ZIO-native HTTP) — you reuse effect-system intuition; you mainly learn new APIs and ecosystem layout.
-
----
-
 ## Why this order? (transferability)
 
 - **Learn first (Typelevel):** **Cats Effect**, **http4s**, **circe**, **doobie** — the bundle shows up constantly in **jobs, tutorials, and OSS**; you learn how those libraries **compose** (closest to "general Scala backend literacy").
